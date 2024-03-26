@@ -25,8 +25,6 @@ func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error
 
 func syncRedirects(redirectsCh <-chan []Redirect, errCh <-chan error) {
 	redirectMap := make(map[string]*Redirect)
-	//fetchedRedirectsMap := make(map[string]bool)
-
 	var lastSyncTime time.Time
 
 	for {
@@ -38,17 +36,32 @@ func syncRedirects(redirectsCh <-chan []Redirect, errCh <-chan error) {
 					lastSyncTime = time.Now()
 				}
 
+				// Initialize a map of ids for quicker lookup
+				fetchedRedirectsIDs := make(map[string]bool)
+				for _, fr := range fetchedRedirects {
+					fetchedRedirectsIDs[fr.Id] = true
+				}
+
+				// Handle deletion
+				for id := range redirectMap {
+					if !fetchedRedirectsIDs[id] {
+						delete(redirectMap, id)
+						fmt.Println("Redirect deleted:", id)
+					}
+				}
+
 				for _, fr := range fetchedRedirects {
 					// Check if redirect exists in map
 					if r, ok := redirectMap[fr.Id]; ok {
 						// Update existing redirect
 						if fr.UpdatedAt.After(lastSyncTime) {
-							fmt.Println("Needs update")
+							fmt.Println("Redirect updated:", fr.Id)
 							*r = fr
 						}
 					} else {
 						// Add new redirect
 						redirectMap[fr.Id] = &fr
+						fmt.Println("Redirect added:", fr.Id)
 					}
 				}
 
