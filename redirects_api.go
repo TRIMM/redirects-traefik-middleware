@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/shurcooL/graphql"
+	"golang.org/x/oauth2"
 	"log"
 	"os"
 	"time"
@@ -26,12 +28,21 @@ func fetchRedirectsQuery() ([]Redirect, error) {
 		log.Fatal("Error loading .env file")
 	}
 
-	graphqlUrl := os.Getenv("GRAPHQL_SERVER")
-	clientId := os.Getenv("CLIENT_ID")
-	client := graphql.NewClient(graphqlUrl, nil)
+	var authBody = NewAuthBody()
+	token, err := authBody.Auth()
+	if err != nil {
+		log.Println("Authentication failed:", err)
+	}
+
+	src := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	httpClient := oauth2.NewClient(context.Background(), src)
+	fmt.Println(httpClient)
+	var client = graphql.NewClient(fmt.Sprintf("%s/graphql", os.Getenv("SERVER_URL")), httpClient)
 
 	vars := map[string]interface{}{
-		"clientId": graphql.String(clientId),
+		"clientId": graphql.String(os.Getenv("CLIENT_ID")),
 	}
 
 	err = client.Query(context.Background(), &redirectsQuery, vars)
