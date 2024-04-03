@@ -9,7 +9,6 @@ import (
 type RedirectManager struct {
 	redirects    map[string]*Redirect
 	lastSyncTime time.Time
-	//mu        sync.Mutex
 }
 
 func NewRedirectManager() *RedirectManager {
@@ -50,6 +49,7 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-
 				rm.lastSyncTime = time.Now()
 				fmt.Println("Redirects synced at:", rm.lastSyncTime)
 				printRedirects(rm.redirects)
+				rm.PopulateTrieWithRedirects()
 			}
 
 		case err := <-errCh:

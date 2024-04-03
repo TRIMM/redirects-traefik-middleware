@@ -18,10 +18,6 @@ type Redirect struct {
 	UpdatedAt time.Time `graphql:"updatedAt"`
 }
 
-var redirectsQuery struct {
-	Redirects []Redirect `graphql:"redirects(clientId: $clientId)"`
-}
-
 func fetchRedirectsQuery() ([]Redirect, error) {
 	err := godotenv.Load()
 	if err != nil {
@@ -38,11 +34,14 @@ func fetchRedirectsQuery() ([]Redirect, error) {
 		&oauth2.Token{AccessToken: token},
 	)
 	httpClient := oauth2.NewClient(context.Background(), src)
-	fmt.Println(httpClient)
 	var client = graphql.NewClient(fmt.Sprintf("%s/graphql", os.Getenv("SERVER_URL")), httpClient)
 
 	vars := map[string]interface{}{
 		"clientId": graphql.String(os.Getenv("CLIENT_ID")),
+	}
+
+	var redirectsQuery struct {
+		Redirects []Redirect `graphql:"redirects(clientId: $clientId)"`
 	}
 
 	err = client.Query(context.Background(), &redirectsQuery, vars)
