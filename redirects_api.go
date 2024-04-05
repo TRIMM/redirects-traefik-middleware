@@ -35,7 +35,7 @@ func executeRedirectsQuery(token, clientId string) ([]Redirect, error) {
 	var client = graphql.NewClient(fmt.Sprintf("%s/graphql", os.Getenv("SERVER_URL")), httpClient)
 
 	vars := map[string]interface{}{
-		"clientId": clientId,
+		"clientId": graphql.String(clientId),
 	}
 
 	var redirectsQuery struct {
