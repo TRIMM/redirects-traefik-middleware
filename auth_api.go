@@ -4,23 +4,36 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"time"
+
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
-type AuthBody struct {
+type Auth struct {
 	ClientName   string `json:"clientName"`
 	ClientSecret string `json:"clientSecret"`
 }
 
-func NewAuthBody() *AuthBody {
-	return &AuthBody{
+func NewAuth() *Auth {
+	return &Auth{
 		ClientName:   os.Getenv("CLIENT_NAME"),
 		ClientSecret: os.Getenv("CLIENT_SECRET"),
 	}
 }
 
-func (authBody *AuthBody) Auth() (string, error) {
+type TokenData struct {
+	Token string
+}
+
+func NewTokenData() *TokenData {
+	return &TokenData{}
+}
+
+func (authBody *Auth) Auth() (string, error) {
+
 	marshalled, err := json.Marshal(authBody)
 	if err != nil {
 		return "", fmt.Errorf("error while building the auth request: %v", err)
@@ -46,4 +59,37 @@ func (authBody *AuthBody) Auth() (string, error) {
 	}
 
 	return tokenResponse.Token, nil
+}
+
+func (td *TokenData) GetToken() (string, error) {
+
+	if len(td.Token) == 0 || isTokenExpired(td.Token) {
+		authBody := NewAuth()
+		token, err := authBody.Auth()
+		if err != nil {
+			log.Println("Authentication failed:", err)
+			return "", err
+		}
+		td.Token = token
+		return token, nil
+	}
+
+	return td.Token, nil
+}
+
+func isTokenExpired(tokenString string) bool {
+
+	parsedToken, err := jwt.ParseSigned(tokenString)
+	if err != nil {
+		log.Println("Failed to parse token:", err)
+		return true
+	}
+
+	var claims jwt.Claims
+	if err := parsedToken.UnsafeClaimsWithoutVerification(&claims); err != nil {
+		log.Println("Failed to extract claims from token:", err)
+		return true
+	}
+
+	return claims.Expiry.Time().Before(time.Now())
 }

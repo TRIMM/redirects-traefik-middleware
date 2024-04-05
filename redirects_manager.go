@@ -19,10 +19,12 @@ func NewRedirectManager() *RedirectManager {
 }
 
 func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
+	var td = NewTokenData()
+
 	for {
 		select {
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := fetchRedirectsQuery()
+			fetchedRedirects, err := fetchRedirects(td)
 			if err != nil {
 				errCh <- err
 			} else {

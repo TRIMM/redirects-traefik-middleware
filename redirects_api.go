@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/joho/godotenv"
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 	"log"
@@ -18,18 +17,17 @@ type Redirect struct {
 	UpdatedAt time.Time `graphql:"updatedAt"`
 }
 
-func fetchRedirectsQuery() ([]Redirect, error) {
-	err := godotenv.Load()
+func fetchRedirects(td *TokenData) ([]Redirect, error) {
+	token, err := td.GetToken()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Failed to get token:", err)
+		return nil, err
 	}
 
-	var authBody = NewAuthBody()
-	token, err := authBody.Auth()
-	if err != nil {
-		log.Println("Authentication failed:", err)
-	}
+	return executeRedirectsQuery(token)
+}
 
+func executeRedirectsQuery(token string) ([]Redirect, error) {
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
@@ -44,7 +42,7 @@ func fetchRedirectsQuery() ([]Redirect, error) {
 		Redirects []Redirect `graphql:"redirects(clientId: $clientId)"`
 	}
 
-	err = client.Query(context.Background(), &redirectsQuery, vars)
+	err := client.Query(context.Background(), &redirectsQuery, vars)
 	if err != nil {
 		log.Println("GraphQL server not reachable!", err)
 		return nil, err
