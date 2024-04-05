@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"strings"
 )
@@ -20,17 +21,16 @@ func getFullURL(req *http.Request) string {
 	return strings.ToLower(answer)
 }
 
-func (rm *RedirectManager) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+/*
+ServeHTTP intercepts a request and matches it against the existing rules presented in the Trie Data structure
+If a match is found, it redirects accordingly
+*/
+func (t *Trie) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	// TODO:: Revise this assignment
-	var answerUrl = req.URL.Host
-
-	for _, redirect := range rm.redirects {
-		if redirect.FromUrl == request {
-			answerUrl = redirect.ToUrl
-			break
-		}
+	redirectURL, ok := t.Match(request)
+	if !ok {
+		log.Println("No matching redirect rule found!")
 	}
 
-	http.Redirect(rw, req, answerUrl, 302)
+	http.Redirect(rw, req, redirectURL, 302)
 }

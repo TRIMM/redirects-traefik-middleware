@@ -9,7 +9,6 @@ import (
 type RedirectManager struct {
 	redirects    map[string]*Redirect
 	lastSyncTime time.Time
-	//mu        sync.Mutex
 }
 
 func NewRedirectManager() *RedirectManager {
@@ -20,10 +19,12 @@ func NewRedirectManager() *RedirectManager {
 }
 
 func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
+	var td = NewTokenData()
+
 	for {
 		select {
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := fetchRedirectsQuery()
+			fetchedRedirects, err := fetchRedirects(td)
 			if err != nil {
 				errCh <- err
 			} else {
@@ -50,6 +51,7 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-
 				rm.lastSyncTime = time.Now()
 				fmt.Println("Redirects synced at:", rm.lastSyncTime)
 				printRedirects(rm.redirects)
+				rm.PopulateTrieWithRedirects()
 			}
 
 		case err := <-errCh:
