@@ -24,10 +24,10 @@ func fetchRedirects(td *TokenData) ([]Redirect, error) {
 		return nil, err
 	}
 
-	return executeRedirectsQuery(token)
+	return executeRedirectsQuery(token, td.ClientId)
 }
 
-func executeRedirectsQuery(token string) ([]Redirect, error) {
+func executeRedirectsQuery(token, clientId string) ([]Redirect, error) {
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
@@ -35,7 +35,7 @@ func executeRedirectsQuery(token string) ([]Redirect, error) {
 	var client = graphql.NewClient(fmt.Sprintf("%s/graphql", os.Getenv("SERVER_URL")), httpClient)
 
 	vars := map[string]interface{}{
-		"clientId": graphql.String(os.Getenv("CLIENT_ID")),
+		"clientId": clientId,
 	}
 
 	var redirectsQuery struct {

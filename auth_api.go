@@ -25,7 +25,8 @@ func NewAuth() *Auth {
 }
 
 type TokenData struct {
-	Token string
+	Token    string
+	ClientId string
 }
 
 func NewTokenData() *TokenData {
@@ -70,7 +71,9 @@ func (td *TokenData) GetToken() (string, error) {
 			log.Println("Authentication failed:", err)
 			return "", err
 		}
+		td.setClientIdFromClaims(token)
 		td.Token = token
+
 		return token, nil
 	}
 
@@ -78,18 +81,26 @@ func (td *TokenData) GetToken() (string, error) {
 }
 
 func isTokenExpired(tokenString string) bool {
+	var claims = getClaimsFromToken(tokenString)
 
+	return claims.Expiry.Time().Before(time.Now())
+}
+
+func (td *TokenData) setClientIdFromClaims(tokenString string) {
+	var claims = getClaimsFromToken(tokenString)
+	td.ClientId = claims.Subject
+}
+
+func getClaimsFromToken(tokenString string) jwt.Claims {
 	parsedToken, err := jwt.ParseSigned(tokenString)
 	if err != nil {
 		log.Println("Failed to parse token:", err)
-		return true
 	}
 
 	var claims jwt.Claims
 	if err := parsedToken.UnsafeClaimsWithoutVerification(&claims); err != nil {
 		log.Println("Failed to extract claims from token:", err)
-		return true
 	}
 
-	return claims.Expiry.Time().Before(time.Now())
+	return claims
 }
