@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"time"
 )
@@ -9,12 +11,32 @@ import (
 type RedirectManager struct {
 	redirects    map[string]*Redirect
 	lastSyncTime time.Time
+	db           *sql.DB
 }
 
-func NewRedirectManager() *RedirectManager {
+func NewRedirectManager(db *sql.DB) *RedirectManager {
 	return &RedirectManager{
 		redirects:    make(map[string]*Redirect),
 		lastSyncTime: time.Time{},
+		db:           db,
+	}
+}
+
+func (rm *RedirectManager) PopulateMapWithSQLRedirects() {
+	rows, err := rm.db.Query("SELECT * FROM redirects")
+	if err != nil {
+		log.Println("Error retrieving SQL records:", err)
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		r := Redirect{}
+		err = rows.Scan(&r.Id, &r.FromUrl, &r.ToUrl, &r.UpdatedAt)
+		if err != nil {
+			log.Println("Error scanning the SQL rows:", err)
+		}
+		rm.redirects[r.Id] = &r
 	}
 }
 
@@ -35,6 +57,7 @@ func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error
 	}
 }
 
+// SyncRedirects synchronizes the fetched redirects with the redirects map and the sqlite records
 func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-chan error) {
 	for {
 		select {
@@ -42,16 +65,16 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-
 
 			if len(fetchedRedirects) > 0 {
 				if rm.lastSyncTime.IsZero() {
-					rm.lastSyncTime = time.Now()
+					rm.lastSyncTime = time.Now().UTC()
 				}
 
-				rm.handleOldRedirectsDeletion(&fetchedRedirects)
-				rm.handleNewOrUpdatedRedirects(&fetchedRedirects)
+				rm.HandleOldRedirectsDeletion(&fetchedRedirects)
+				rm.HandleNewOrUpdatedRedirects(&fetchedRedirects)
+				rm.PopulateTrieWithRedirects()
 
-				rm.lastSyncTime = time.Now()
+				rm.lastSyncTime = time.Now().UTC()
 				fmt.Println("Redirects synced at:", rm.lastSyncTime)
 				printRedirects(rm.redirects)
-				rm.PopulateTrieWithRedirects()
 			}
 
 		case err := <-errCh:
@@ -60,19 +83,24 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-
 	}
 }
 
-// Handle deletion
-func (rm *RedirectManager) handleOldRedirectsDeletion(fetchedRedirects *[]Redirect) {
+func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]Redirect) {
 	var fetchedRedirectsIDs = initializeRedirectMapIds(*fetchedRedirects)
 
 	for id := range rm.redirects {
 		if !fetchedRedirectsIDs[id] {
 			delete(rm.redirects, id)
-			fmt.Println("Redirect deleted:", id)
+			// Delete from the database
+			err := rm.DeleteOldRedirects(id)
+			if err != nil {
+				log.Println("Error deleting old redirects:", err)
+			} else {
+				log.Println("Deleted old redirect:", id)
+			}
 		}
 	}
 }
 
-func (rm *RedirectManager) handleNewOrUpdatedRedirects(fetchedRedirects *[]Redirect) {
+func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redirect) {
 	for _, fr := range *fetchedRedirects {
 		// Check if redirect exists in map
 		if r, ok := rm.redirects[fr.Id]; ok {
@@ -86,7 +114,39 @@ func (rm *RedirectManager) handleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 			rm.redirects[fr.Id] = &fr
 			fmt.Println("Redirect added:", fr.Id)
 		}
+
+		// Update the database records
+		err := rm.StoreOrUpdateRedirect(fr)
+		if err != nil {
+			log.Println("Error storing new or updated redirects:", err)
+		}
 	}
+}
+
+func (rm *RedirectManager) StoreOrUpdateRedirect(r Redirect) error {
+	stmt := `
+			INSERT INTO redirects (id, fromURL, toURL, updatedAt)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT(id) DO UPDATE
+			SET fromURL = EXCLUDED.fromURL, toURL = EXCLUDED.toURL, updatedAt = EXCLUDED.updatedAt;
+			`
+
+	_, err := rm.db.Exec(stmt, r.Id, r.FromUrl, r.ToUrl, r.UpdatedAt, r.FromUrl, r.ToUrl, r.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (rm *RedirectManager) DeleteOldRedirects(id string) error {
+	stmt := `DELETE FROM redirects WHERE id = ?;`
+
+	_, err := rm.db.Exec(stmt, id)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Initialize a map of ids for quicker lookup
