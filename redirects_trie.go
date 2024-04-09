@@ -68,9 +68,6 @@ func (t *Trie) Match(requestURL string) (string, bool) {
 	return redirectURL, true
 }
 
-func (rm *RedirectManager) PopulateTrieWithRedirects() {
-	var trie = NewTrie()
-	for _, r := range rm.redirects {
-		trie.Insert(r.FromUrl, r.ToUrl)
-	}
+func (t *Trie) Clear() {
+	t.Root = &TrieNode{Children: make(map[string]*TrieNode)}
 }

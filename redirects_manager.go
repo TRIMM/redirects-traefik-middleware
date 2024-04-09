@@ -10,6 +10,7 @@ import (
 
 type RedirectManager struct {
 	redirects    map[string]*Redirect
+	trie         *Trie
 	lastSyncTime time.Time
 	db           *sql.DB
 }
@@ -17,6 +18,7 @@ type RedirectManager struct {
 func NewRedirectManager(db *sql.DB) *RedirectManager {
 	return &RedirectManager{
 		redirects:    make(map[string]*Redirect),
+		trie:         NewTrie(),
 		lastSyncTime: time.Time{},
 		db:           db,
 	}
@@ -40,11 +42,19 @@ func (rm *RedirectManager) PopulateMapWithDataFromDB() {
 	}
 }
 
+func (rm *RedirectManager) PopulateTrieWithRedirects() {
+	rm.trie.Clear()
+	for _, r := range rm.redirects {
+		rm.trie.Insert(r.FromUrl, r.ToUrl)
+	}
+}
+
 func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
 	var td = NewTokenData()
 
 	for {
 		select {
+		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
 			fetchedRedirects, err := fetchRedirects(td)
 			if err != nil {
@@ -90,7 +100,7 @@ func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]Redire
 		if !fetchedRedirectsIDs[id] {
 			delete(rm.redirects, id)
 			// Delete from the database
-			err := rm.DeleteOldRedirects(id)
+			err := rm.DeleteOldRedirect(id)
 			if err != nil {
 				log.Println("Error deleting old redirects:", err)
 			} else {
@@ -126,7 +136,6 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 				log.Println("Error storing new redirect in the database:", err)
 			}
 		}
-
 	}
 }
 
@@ -146,7 +155,7 @@ func (rm *RedirectManager) StoreOrUpdateRedirect(r Redirect) error {
 	return nil
 }
 
-func (rm *RedirectManager) DeleteOldRedirects(id string) error {
+func (rm *RedirectManager) DeleteOldRedirect(id string) error {
 	stmt := `DELETE FROM redirects WHERE id = ?;`
 
 	_, err := rm.db.Exec(stmt, id)
