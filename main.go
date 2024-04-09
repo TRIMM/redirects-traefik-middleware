@@ -10,7 +10,7 @@ func main() {
 	loadEnv()
 
 	var redirectManager = NewRedirectManager(dbConnect("redirects.db"))
-	redirectManager.PopulateMapWithSQLRedirects()
+	redirectManager.PopulateMapWithDataFromDB()
 
 	// Create channels for fetching redirects periodically
 	var redirectsCh = make(chan []Redirect)

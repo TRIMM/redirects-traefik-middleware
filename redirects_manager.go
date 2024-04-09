@@ -22,7 +22,7 @@ func NewRedirectManager(db *sql.DB) *RedirectManager {
 	}
 }
 
-func (rm *RedirectManager) PopulateMapWithSQLRedirects() {
+func (rm *RedirectManager) PopulateMapWithDataFromDB() {
 	rows, err := rm.db.Query("SELECT * FROM redirects")
 	if err != nil {
 		log.Println("Error retrieving SQL records:", err)
@@ -94,7 +94,7 @@ func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]Redire
 			if err != nil {
 				log.Println("Error deleting old redirects:", err)
 			} else {
-				log.Println("Deleted old redirect:", id)
+				fmt.Println("Deleted old redirect:", id)
 			}
 		}
 	}
@@ -106,20 +106,27 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 		if r, ok := rm.redirects[fr.Id]; ok {
 			// Update existing redirect
 			if fr.UpdatedAt.After(rm.lastSyncTime) {
-				fmt.Println("Redirect updated:", fr.Id)
 				*r = fr
+				fmt.Println("Redirect updated:", fr.Id)
+
+				// Update the database record
+				err := rm.StoreOrUpdateRedirect(fr)
+				if err != nil {
+					log.Println("Error updating redirect in the database:", err)
+				}
 			}
 		} else {
 			// Add new redirect
 			rm.redirects[fr.Id] = &fr
 			fmt.Println("Redirect added:", fr.Id)
+
+			// Store the database record
+			err := rm.StoreOrUpdateRedirect(fr)
+			if err != nil {
+				log.Println("Error storing new redirect in the database:", err)
+			}
 		}
 
-		// Update the database records
-		err := rm.StoreOrUpdateRedirect(fr)
-		if err != nil {
-			log.Println("Error storing new or updated redirects:", err)
-		}
 	}
 }
 
