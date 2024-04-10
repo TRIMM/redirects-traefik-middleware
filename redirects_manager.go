@@ -13,6 +13,7 @@ type RedirectManager struct {
 	trie         *Trie
 	lastSyncTime time.Time
 	db           *sql.DB
+	logger       *Logger
 }
 
 func NewRedirectManager(db *sql.DB) *RedirectManager {
@@ -21,6 +22,7 @@ func NewRedirectManager(db *sql.DB) *RedirectManager {
 		trie:         NewTrie(),
 		lastSyncTime: time.Time{},
 		db:           db,
+		logger:       NewLogger("requests.log"),
 	}
 }
 
