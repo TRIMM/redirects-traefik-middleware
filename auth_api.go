@@ -80,15 +80,15 @@ func (td *TokenData) GetToken() (string, error) {
 	return td.Token, nil
 }
 
+func (td *TokenData) setClientIdFromClaims(tokenString string) {
+	var claims = getClaimsFromToken(tokenString)
+	td.ClientId = claims.Subject
+}
+
 func isTokenExpired(tokenString string) bool {
 	var claims = getClaimsFromToken(tokenString)
 
 	return claims.Expiry.Time().Before(time.Now())
-}
-
-func (td *TokenData) setClientIdFromClaims(tokenString string) {
-	var claims = getClaimsFromToken(tokenString)
-	td.ClientId = claims.Subject
 }
 
 func getClaimsFromToken(tokenString string) jwt.Claims {

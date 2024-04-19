@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	"log"
-	"net/http"
 )
 
 func main() {
@@ -24,12 +23,6 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
-	// For TESTING the interception of requests
-	http.HandleFunc("/", redirectManager.ServeHTTP)
-	port := ":8080"
-	fmt.Printf("Server listening on port %s...\n", port)
-	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 func loadEnv() {

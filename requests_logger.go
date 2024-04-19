@@ -23,6 +23,7 @@ func NewLogger(fileName string) *Logger {
 	}
 }
 
+// LoadLoggedRequests loads the requestMap with data from the .log file
 func (l *Logger) LoadLoggedRequests() error {
 	file, err := os.OpenFile(l.fileName, os.O_APPEND|os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
@@ -61,6 +62,7 @@ func (l *Logger) LoadLoggedRequests() error {
 	return nil
 }
 
+// LogRequest logs any incoming requests with dates to the .log file
 func (l *Logger) LogRequest(requestURL string) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()

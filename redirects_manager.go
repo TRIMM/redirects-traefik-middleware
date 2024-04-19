@@ -26,31 +26,6 @@ func NewRedirectManager(db *sql.DB) *RedirectManager {
 	}
 }
 
-func (rm *RedirectManager) PopulateMapWithDataFromDB() {
-	rows, err := rm.db.Query("SELECT * FROM redirects")
-	if err != nil {
-		log.Println("Error retrieving SQL records:", err)
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		r := Redirect{}
-		err = rows.Scan(&r.Id, &r.FromUrl, &r.ToUrl, &r.UpdatedAt)
-		if err != nil {
-			log.Println("Error scanning the SQL rows:", err)
-		}
-		rm.redirects[r.Id] = &r
-	}
-}
-
-func (rm *RedirectManager) PopulateTrieWithRedirects() {
-	rm.trie.Clear()
-	for _, r := range rm.redirects {
-		rm.trie.Insert(r.FromUrl, r.ToUrl)
-	}
-}
-
 func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
 	var td = NewTokenData()
 
@@ -66,6 +41,31 @@ func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error
 				redirectsCh <- fetchedRedirects
 			}
 		}
+	}
+}
+
+func (rm *RedirectManager) PopulateMapWithDataFromDB() {
+	rows, err := rm.db.Query("SELECT * FROM redirects")
+	if err != nil {
+		log.Println("Error retrieving SQL records:", err)
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		r := Redirect{}
+		err = rows.Scan(&r.Id, &r.FromURL, &r.ToURL, &r.UpdatedAt)
+		if err != nil {
+			log.Println("Error scanning the SQL rows:", err)
+		}
+		rm.redirects[r.Id] = &r
+	}
+}
+
+func (rm *RedirectManager) PopulateTrieWithRedirects() {
+	rm.trie.Clear()
+	for _, r := range rm.redirects {
+		rm.trie.Insert(r.FromURL, r.ToURL)
 	}
 }
 
@@ -149,7 +149,7 @@ func (rm *RedirectManager) StoreOrUpdateRedirect(r Redirect) error {
 			SET fromURL = EXCLUDED.fromURL, toURL = EXCLUDED.toURL, updatedAt = EXCLUDED.updatedAt;
 			`
 
-	_, err := rm.db.Exec(stmt, r.Id, r.FromUrl, r.ToUrl, r.UpdatedAt, r.FromUrl, r.ToUrl, r.UpdatedAt)
+	_, err := rm.db.Exec(stmt, r.Id, r.FromURL, r.ToURL, r.UpdatedAt, r.FromURL, r.ToURL, r.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -180,6 +180,6 @@ func initializeRedirectMapIds(fetchedRedirects []Redirect) map[string]bool {
 func printRedirects(redirectMap map[string]*Redirect) {
 	fmt.Println("Redirects:")
 	for id, r := range redirectMap {
-		fmt.Printf("ID: %s, FromUrl: %s, ToUrl: %s, UpdatedAt: %s\n", id, r.FromUrl, r.ToUrl, r.UpdatedAt)
+		fmt.Printf("ID: %s, FromURL: %s, ToURL: %s, UpdatedAt: %s\n", id, r.FromURL, r.ToURL, r.UpdatedAt)
 	}
 }
