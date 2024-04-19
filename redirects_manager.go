@@ -9,31 +9,31 @@ import (
 )
 
 type RedirectManager struct {
+	db           *sql.DB
 	redirects    map[string]*Redirect
 	trie         *Trie
-	lastSyncTime time.Time
-	db           *sql.DB
+	tokenData    *TokenData
 	logger       *Logger
+	lastSyncTime time.Time
 }
 
-func NewRedirectManager(db *sql.DB) *RedirectManager {
+func NewRedirectManager(db *sql.DB, logger *Logger) *RedirectManager {
 	return &RedirectManager{
+		db:           db,
 		redirects:    make(map[string]*Redirect),
 		trie:         NewTrie(),
+		tokenData:    NewTokenData(),
+		logger:       logger,
 		lastSyncTime: time.Time{},
-		db:           db,
-		logger:       NewLogger("requests.log"),
 	}
 }
 
-func fetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
-	var td = NewTokenData()
-
+func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
 	for {
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := fetchRedirects(td)
+			fetchedRedirects, err := fetchRedirects(rm.tokenData)
 			if err != nil {
 				errCh <- err
 			} else {

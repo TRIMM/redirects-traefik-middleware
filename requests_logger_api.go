@@ -11,42 +11,35 @@ type LogRequestsInput struct {
 	HitTime    time.Time `json:"hitTime"`
 }
 
-func sendLogs(td *TokenData) {
-	token, err := td.GetToken()
-	if err != nil {
-		log.Println("Failed to get token:", err)
-	}
-
-	executeLogRequestsMutation(token)
+type LogResponse struct {
+	Success bool   `graphql:"success"`
+	Message string `graphql:"message"`
 }
 
-func executeLogRequestsMutation(token string) {
+func executeLogRequestsMutation(token string, requestsMap *map[string]time.Time) (LogResponse, error) {
 	var logMutation struct {
-		LogResponse struct {
-			Success bool   `graphql:"success"`
-			Message string `graphql:"message"`
-		} `graphql:"logRequests(logRequestsInput: $logRequestsInput)"`
+		LogResponse `graphql:"logRequests(logRequestsInput: $logRequestsInput)"`
+	}
+
+	var logsInput []LogRequestsInput
+
+	for key, val := range *requestsMap {
+		logsInput = append(logsInput, LogRequestsInput{
+			RequestURL: key,
+			HitTime:    val,
+		})
 	}
 
 	vars := map[string]interface{}{
-		"logRequestsInput": []LogRequestsInput{
-			{
-				RequestURL: "http://localhost:8080/",
-				HitTime:    time.Now(),
-			},
-			{
-				RequestURL: "http://localhost:8081/test",
-				HitTime:    time.Now(),
-			},
-		},
+		"logRequestsInput": logsInput,
 	}
 
 	var client = newGraphQLClient(token)
 	err := client.Mutate(context.Background(), &logMutation, vars)
 	if err != nil {
 		log.Println("GraphQL server not reachable!", err)
+		return LogResponse{}, err
 	}
 
-	log.Println("Mutation response:", logMutation.LogResponse)
-
+	return logMutation.LogResponse, nil
 }

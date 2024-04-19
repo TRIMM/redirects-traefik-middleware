@@ -2,27 +2,37 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/joho/godotenv"
 	"log"
 )
 
 func main() {
 	loadEnv()
-	var redirectManager = NewRedirectManager(dbConnect("redirects.db"))
+	var logger = NewLogger("requests.log")
+	var redirectManager = NewRedirectManager(dbConnect("redirects.db"), logger)
 
-	// Create channels for fetching redirects periodically
+	//Create channels for fetching redirects periodically
 	var redirectsCh = make(chan []Redirect)
 	var errCh = make(chan error)
 
-	go fetchRedirectsOverChannel(redirectsCh, errCh)
+	go func() {
+		defer close(redirectsCh)
+		defer close(errCh)
+
+		redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
+	}()
+
 	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.SyncRedirects(redirectsCh, errCh)
 
-	err := redirectManager.logger.LoadLoggedRequests()
-	if err != nil {
-		fmt.Println(err)
-	}
+	// Start a goroutine to send request logs periodically
+	//TODO::see why it does not get here
+	go func() {
+		logger.SendLogs(redirectManager.tokenData)
+	}()
+
+	// Keep the main goroutine running to let the child goroutines execute
+	select {}
 }
 
 func loadEnv() {

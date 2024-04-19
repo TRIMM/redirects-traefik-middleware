@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -10,20 +11,50 @@ import (
 )
 
 type Logger struct {
-	fileName   string
-	requestMap map[string]time.Time
-	mutex      sync.Mutex
+	fileName    string
+	requestsMap map[string]time.Time
+	mutex       sync.Mutex
 }
 
 func NewLogger(fileName string) *Logger {
 	return &Logger{
-		requestMap: make(map[string]time.Time),
-		mutex:      sync.Mutex{},
-		fileName:   fileName,
+		requestsMap: make(map[string]time.Time),
+		mutex:       sync.Mutex{},
+		fileName:    fileName,
 	}
 }
 
-// LoadLoggedRequests loads the requestMap with data from the .log file
+func (l *Logger) SendLogs(td *TokenData) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			l.mutex.Lock()
+			err := l.LoadLoggedRequests()
+			if err != nil {
+				log.Println(err)
+			}
+
+			token, err := td.GetToken()
+			if err != nil {
+				log.Println("Failed to get token:", err)
+			}
+
+			response, err := executeLogRequestsMutation(token, &l.requestsMap)
+			if err != nil {
+				log.Println("Failed to execute GraphQL mutation:", err)
+			}
+
+			fmt.Println(response.Message)
+			l.mutex.Unlock()
+		}
+	}
+
+}
+
+// LoadLoggedRequests loads the requestsMap with data from the .log file
 func (l *Logger) LoadLoggedRequests() error {
 	file, err := os.OpenFile(l.fileName, os.O_APPEND|os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
@@ -48,11 +79,9 @@ func (l *Logger) LoadLoggedRequests() error {
 			continue
 		}
 
-		l.mutex.Lock()
-		if existingTimestamp, ok := l.requestMap[requestURL]; !ok || timestamp.After(existingTimestamp) {
-			l.requestMap[requestURL] = timestamp
+		if existingTimestamp, ok := l.requestsMap[requestURL]; !ok || timestamp.After(existingTimestamp) {
+			l.requestsMap[requestURL] = timestamp
 		}
-		l.mutex.Unlock()
 	}
 
 	if err := scanner.Err(); err != nil {
