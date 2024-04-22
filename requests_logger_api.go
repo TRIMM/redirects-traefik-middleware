@@ -16,13 +16,14 @@ type LogResponse struct {
 	Message string `graphql:"message"`
 }
 
-func executeLogRequestsMutation(token string, requestsMap *map[string]time.Time) (LogResponse, error) {
+func (gql *GraphQLClient) executeLogRequestsMutation(requestsMap *map[string]time.Time) (LogResponse, error) {
 	var logMutation struct {
 		LogResponse `graphql:"logRequests(logRequestsInput: $logRequestsInput)"`
 	}
 
 	var logsInput []LogRequestsInput
 
+	// populate the logs input for the mutation
 	for key, val := range *requestsMap {
 		logsInput = append(logsInput, LogRequestsInput{
 			RequestURL: key,
@@ -34,8 +35,7 @@ func executeLogRequestsMutation(token string, requestsMap *map[string]time.Time)
 		"logRequestsInput": logsInput,
 	}
 
-	var client = newGraphQLClient(token)
-	err := client.Mutate(context.Background(), &logMutation, vars)
+	err := gql.client.Mutate(context.Background(), &logMutation, vars)
 	if err != nil {
 		log.Println("GraphQL server not reachable!", err)
 		return LogResponse{}, err

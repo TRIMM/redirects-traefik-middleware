@@ -27,13 +27,13 @@ If a match is found, it redirects accordingly
 */
 func (rm *RedirectManager) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
+	if err := rm.logger.LogRequest(request); err != nil {
+		log.Println("Failed to log request to file: ", err)
+	}
+
 	redirectURL, ok := rm.trie.Match(request)
 	if !ok {
 		log.Println("No matching redirect rule found!")
-	}
-
-	if err := rm.logger.LogRequest(request); err != nil {
-		log.Println("Failed to log request to file: ", err)
 	}
 
 	http.Redirect(rw, req, redirectURL, 302)

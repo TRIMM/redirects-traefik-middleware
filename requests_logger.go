@@ -14,18 +14,20 @@ type Logger struct {
 	fileName    string
 	requestsMap map[string]time.Time
 	mutex       sync.Mutex
+	gqlClient   *GraphQLClient
 }
 
-func NewLogger(fileName string) *Logger {
+func NewLogger(fileName string, gqlClient *GraphQLClient) *Logger {
 	return &Logger{
 		requestsMap: make(map[string]time.Time),
 		mutex:       sync.Mutex{},
 		fileName:    fileName,
+		gqlClient:   gqlClient,
 	}
 }
 
-func (l *Logger) SendLogs(td *TokenData) {
-	ticker := time.NewTicker(5 * time.Second)
+func (l *Logger) SendLogs() {
+	ticker := time.NewTicker(20 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -37,12 +39,7 @@ func (l *Logger) SendLogs(td *TokenData) {
 				log.Println(err)
 			}
 
-			token, err := td.GetToken()
-			if err != nil {
-				log.Println("Failed to get token:", err)
-			}
-
-			response, err := executeLogRequestsMutation(token, &l.requestsMap)
+			response, err := l.gqlClient.executeLogRequestsMutation(&l.requestsMap)
 			if err != nil {
 				log.Println("Failed to execute GraphQL mutation:", err)
 			}

@@ -7,9 +7,19 @@ import (
 )
 
 func main() {
+	// Load env variables
 	loadEnv()
-	var logger = NewLogger("requests.log")
-	var redirectManager = NewRedirectManager(dbConnect("redirects.db"), logger)
+
+	var tokenData = NewTokenData()
+	var graphqlClient = NewGraphQLClient(tokenData)
+	var logger = NewLogger("requests.log", graphqlClient)
+	var redirectManager = NewRedirectManager(dbConnect("redirects.db"), graphqlClient, tokenData, logger)
+
+	redirectManager.PopulateMapWithDataFromDB()
+	redirectManager.PopulateTrieWithRedirects()
+
+	// Start a goroutine to send request logs periodically
+	go logger.SendLogs()
 
 	//Create channels for fetching redirects periodically
 	var redirectsCh = make(chan []Redirect)
@@ -21,15 +31,7 @@ func main() {
 
 		redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
 	}()
-
-	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.SyncRedirects(redirectsCh, errCh)
-
-	// Start a goroutine to send request logs periodically
-	//TODO::see why it does not get here
-	go func() {
-		logger.SendLogs(redirectManager.tokenData)
-	}()
 
 	// Keep the main goroutine running to let the child goroutines execute
 	select {}

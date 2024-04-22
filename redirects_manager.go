@@ -10,6 +10,7 @@ import (
 
 type RedirectManager struct {
 	db           *sql.DB
+	gqlClient    *GraphQLClient
 	redirects    map[string]*Redirect
 	trie         *Trie
 	tokenData    *TokenData
@@ -17,12 +18,13 @@ type RedirectManager struct {
 	lastSyncTime time.Time
 }
 
-func NewRedirectManager(db *sql.DB, logger *Logger) *RedirectManager {
+func NewRedirectManager(db *sql.DB, gqlClient *GraphQLClient, tokenData *TokenData, logger *Logger) *RedirectManager {
 	return &RedirectManager{
 		db:           db,
+		gqlClient:    gqlClient,
 		redirects:    make(map[string]*Redirect),
 		trie:         NewTrie(),
-		tokenData:    NewTokenData(),
+		tokenData:    tokenData,
 		logger:       logger,
 		lastSyncTime: time.Time{},
 	}
@@ -33,7 +35,7 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []Redire
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := fetchRedirects(rm.tokenData)
+			fetchedRedirects, err := rm.gqlClient.executeRedirectsQuery(rm.tokenData.ClientId)
 			if err != nil {
 				errCh <- err
 			} else {
@@ -62,19 +64,11 @@ func (rm *RedirectManager) PopulateMapWithDataFromDB() {
 	}
 }
 
-func (rm *RedirectManager) PopulateTrieWithRedirects() {
-	rm.trie.Clear()
-	for _, r := range rm.redirects {
-		rm.trie.Insert(r.FromURL, r.ToURL)
-	}
-}
-
 // SyncRedirects synchronizes the fetched redirects with the redirects map and the sqlite records
 func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-chan error) {
 	for {
 		select {
 		case fetchedRedirects := <-redirectsCh:
-
 			if len(fetchedRedirects) > 0 {
 				if rm.lastSyncTime.IsZero() {
 					rm.lastSyncTime = time.Now().UTC()
@@ -122,7 +116,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 				fmt.Println("Redirect updated:", fr.Id)
 
 				// Update the database record
-				err := rm.StoreOrUpdateRedirect(fr)
+				err := rm.UpsertRedirect(fr)
 				if err != nil {
 					log.Println("Error updating redirect in the database:", err)
 				}
@@ -133,7 +127,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 			fmt.Println("Redirect added:", fr.Id)
 
 			// Store the database record
-			err := rm.StoreOrUpdateRedirect(fr)
+			err := rm.UpsertRedirect(fr)
 			if err != nil {
 				log.Println("Error storing new redirect in the database:", err)
 			}
@@ -141,7 +135,14 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 	}
 }
 
-func (rm *RedirectManager) StoreOrUpdateRedirect(r Redirect) error {
+func (rm *RedirectManager) PopulateTrieWithRedirects() {
+	rm.trie.Clear()
+	for _, r := range rm.redirects {
+		rm.trie.Insert(r.FromURL, r.ToURL)
+	}
+}
+
+func (rm *RedirectManager) UpsertRedirect(r Redirect) error {
 	stmt := `
 			INSERT INTO redirects (id, fromURL, toURL, updatedAt)
 			VALUES (?, ?, ?, ?)
