@@ -58,7 +58,12 @@ func (l *Logger) LoadLoggedRequests() error {
 		return fmt.Errorf("error opening file: %v", err)
 	}
 
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			log.Println("Error closing file:", err)
+		}
+	}()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -98,7 +103,12 @@ func (l *Logger) LogRequest(requestURL string) error {
 		return fmt.Errorf("error opening file: %v", err)
 	}
 
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			log.Println("Error closing file:", err)
+		}
+	}()
 
 	// Write to log file
 	logEntry := fmt.Sprintf("%s,%s\n", requestURL, time.Now().Format(time.RFC3339))

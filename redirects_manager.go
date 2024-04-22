@@ -52,7 +52,12 @@ func (rm *RedirectManager) PopulateMapWithDataFromDB() {
 		log.Println("Error retrieving SQL records:", err)
 	}
 
-	defer rows.Close()
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
 
 	for rows.Next() {
 		r := Redirect{}

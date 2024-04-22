@@ -72,7 +72,13 @@ func (authData *AuthData) Auth() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error while authenticating: %v", err)
 	}
-	defer res.Body.Close()
+
+	defer func() {
+		err := res.Body.Close()
+		if err != nil {
+			log.Println("Error closing file:", err)
+		}
+	}()
 
 	if res.StatusCode != http.StatusCreated {
 		return "", fmt.Errorf("authentication failed with status code %d", res.StatusCode)
