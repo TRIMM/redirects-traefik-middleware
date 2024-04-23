@@ -1,8 +1,8 @@
 # TRIMM Redirects Traefik Middleware
 
 ## Introduction
-This project is a traefik middleware written in GoLang.
-The purpose of it is to redirect according to records processed from the Central API backend.
+This project is a Traefik middleware written in Go Lang.
+The purpose of it is to redirect the user according to rules processed from the Central API backend.
 
 ## Instructions
 
@@ -17,4 +17,4 @@ https://gitlab.trimm.nl/technology/platform-applications/redneck
 ### 3. Run the application
 If you are using GoLand, then you can just run the application using the play or debug button.
 
-In any other case, open the terminal in the current directory, and you can just run the `go run .` command.
+In any other case, open the terminal in the current directory, and you can just run the `go run cmd/main.go` command.
