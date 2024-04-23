@@ -7,17 +7,33 @@ import (
 )
 
 func main() {
+	// Load env variables
 	loadEnv()
 
-	var redirectManager = NewRedirectManager(dbConnect("redirects.db"))
-	redirectManager.PopulateMapWithDataFromDB()
+	var tokenData = NewTokenData()
+	var graphqlClient = NewGraphQLClient(tokenData)
 
-	// Create channels for fetching redirects periodically
+	var logger = NewLogger("requests.log", graphqlClient)
+	logger.SendLogsWeekly()
+
+	var redirectManager = NewRedirectManager(dbConnect("redirects.db"), graphqlClient, tokenData, logger)
+	redirectManager.PopulateMapWithDataFromDB()
+	redirectManager.PopulateTrieWithRedirects()
+
+	//Create channels for fetching redirects periodically
 	var redirectsCh = make(chan []Redirect)
 	var errCh = make(chan error)
 
-	go fetchRedirectsOverChannel(redirectsCh, errCh)
+	go func() {
+		defer close(redirectsCh)
+		defer close(errCh)
+
+		redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
+	}()
 	redirectManager.SyncRedirects(redirectsCh, errCh)
+
+	// Keep the main goroutine running to let the child goroutines execute
+	select {}
 }
 
 func loadEnv() {
@@ -32,6 +48,5 @@ func dbConnect(file string) *sql.DB {
 	if err != nil {
 		log.Fatal("Database connection issues: ", err)
 	}
-
 	return db
 }

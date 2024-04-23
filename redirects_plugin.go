@@ -25,9 +25,13 @@ func getFullURL(req *http.Request) string {
 ServeHTTP intercepts a request and matches it against the existing rules presented in the Trie Data structure
 If a match is found, it redirects accordingly
 */
-func (t *Trie) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+func (rm *RedirectManager) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	redirectURL, ok := t.Match(request)
+	if err := rm.logger.LogRequest(request); err != nil {
+		log.Println("Failed to log request to file: ", err)
+	}
+
+	redirectURL, ok := rm.trie.Match(request)
 	if !ok {
 		log.Println("No matching redirect rule found!")
 	}
