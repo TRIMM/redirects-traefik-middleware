@@ -1,28 +1,29 @@
-package main
+package app
 
 import (
 	"database/sql"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
+	api "redneck-traefik-middleware/api/v1"
 	"time"
 )
 
 type RedirectManager struct {
 	db           *sql.DB
-	gqlClient    *GraphQLClient
-	redirects    map[string]*Redirect
+	gqlClient    *api.GraphQLClient
+	redirects    map[string]*api.Redirect
 	trie         *Trie
-	tokenData    *TokenData
+	tokenData    *api.TokenData
 	logger       *Logger
 	lastSyncTime time.Time
 }
 
-func NewRedirectManager(db *sql.DB, gqlClient *GraphQLClient, tokenData *TokenData, logger *Logger) *RedirectManager {
+func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient, tokenData *api.TokenData, logger *Logger) *RedirectManager {
 	return &RedirectManager{
 		db:           db,
 		gqlClient:    gqlClient,
-		redirects:    make(map[string]*Redirect),
+		redirects:    make(map[string]*api.Redirect),
 		trie:         NewTrie(),
 		tokenData:    tokenData,
 		logger:       logger,
@@ -30,7 +31,7 @@ func NewRedirectManager(db *sql.DB, gqlClient *GraphQLClient, tokenData *TokenDa
 	}
 }
 
-func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []Redirect, errCh chan<- error) {
+func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Redirect, errCh chan<- error) {
 	for {
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
@@ -60,7 +61,7 @@ func (rm *RedirectManager) PopulateMapWithDataFromDB() {
 	}()
 
 	for rows.Next() {
-		r := Redirect{}
+		r := api.Redirect{}
 		err = rows.Scan(&r.Id, &r.FromURL, &r.ToURL, &r.UpdatedAt)
 		if err != nil {
 			log.Println("Error scanning the SQL rows:", err)
@@ -70,7 +71,7 @@ func (rm *RedirectManager) PopulateMapWithDataFromDB() {
 }
 
 // SyncRedirects synchronizes the fetched redirects with the redirects map and the sqlite records
-func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-chan error) {
+func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []api.Redirect, errCh <-chan error) {
 	for {
 		select {
 		case fetchedRedirects := <-redirectsCh:
@@ -95,7 +96,7 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-
 	}
 }
 
-func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]Redirect) {
+func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]api.Redirect) {
 	var fetchedRedirectsIDs = initializeRedirectMapIds(*fetchedRedirects)
 
 	for id := range rm.redirects {
@@ -112,7 +113,7 @@ func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]Redire
 	}
 }
 
-func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redirect) {
+func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.Redirect) {
 	for _, fr := range *fetchedRedirects {
 		// Check if redirect exists in map
 		if r, ok := rm.redirects[fr.Id]; ok {
@@ -147,7 +148,7 @@ func (rm *RedirectManager) PopulateTrieWithRedirects() {
 	}
 }
 
-func (rm *RedirectManager) UpsertRedirect(r Redirect) error {
+func (rm *RedirectManager) UpsertRedirect(r api.Redirect) error {
 	stmt := `
 			INSERT INTO redirects (id, fromURL, toURL, updatedAt)
 			VALUES (?, ?, ?, ?)
@@ -174,7 +175,7 @@ func (rm *RedirectManager) DeleteOldRedirect(id string) error {
 }
 
 // Initialize a map of ids for quicker lookup
-func initializeRedirectMapIds(fetchedRedirects []Redirect) map[string]bool {
+func initializeRedirectMapIds(fetchedRedirects []api.Redirect) map[string]bool {
 	var fetchedRedirectsIDs = make(map[string]bool)
 	for _, fr := range fetchedRedirects {
 		fetchedRedirectsIDs[fr.Id] = true
@@ -183,7 +184,7 @@ func initializeRedirectMapIds(fetchedRedirects []Redirect) map[string]bool {
 	return fetchedRedirectsIDs
 }
 
-func printRedirects(redirectMap map[string]*Redirect) {
+func printRedirects(redirectMap map[string]*api.Redirect) {
 	fmt.Println("Redirects:")
 	for id, r := range redirectMap {
 		fmt.Printf("ID: %s, FromURL: %s, ToURL: %s, UpdatedAt: %s\n", id, r.FromURL, r.ToURL, r.UpdatedAt)

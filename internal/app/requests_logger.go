@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"bufio"
@@ -6,6 +6,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
+	"redneck-traefik-middleware/api/v1"
 	"strings"
 	"sync"
 	"time"
@@ -15,10 +16,10 @@ type Logger struct {
 	fileName    string
 	requestsMap map[string]time.Time
 	mutex       sync.Mutex
-	gqlClient   *GraphQLClient
+	gqlClient   *v1.GraphQLClient
 }
 
-func NewLogger(fileName string, gqlClient *GraphQLClient) *Logger {
+func NewLogger(fileName string, gqlClient *v1.GraphQLClient) *Logger {
 	return &Logger{
 		requestsMap: make(map[string]time.Time),
 		mutex:       sync.Mutex{},
