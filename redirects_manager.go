@@ -35,7 +35,7 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []Redire
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := rm.gqlClient.executeRedirectsQuery(rm.tokenData.ClientId)
+			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery(rm.tokenData.ClientId)
 			if err != nil {
 				errCh <- err
 			} else {
@@ -86,6 +86,7 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []Redirect, errCh <-
 				rm.lastSyncTime = time.Now().UTC()
 				fmt.Println("Redirects synced at:", rm.lastSyncTime)
 				printRedirects(rm.redirects)
+				fmt.Printf("\n")
 			}
 
 		case err := <-errCh:
@@ -119,7 +120,6 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]Redir
 			if fr.UpdatedAt.After(rm.lastSyncTime) {
 				*r = fr
 				fmt.Println("Redirect updated:", fr.Id)
-
 				// Update the database record
 				err := rm.UpsertRedirect(fr)
 				if err != nil {

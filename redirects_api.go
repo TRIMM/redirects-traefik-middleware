@@ -14,7 +14,7 @@ type Redirect struct {
 	UpdatedAt time.Time `graphql:"updatedAt"`
 }
 
-func (gql *GraphQLClient) executeRedirectsQuery(clientId string) ([]Redirect, error) {
+func (gql *GraphQLClient) ExecuteRedirectsQuery(clientId string) ([]Redirect, error) {
 	var redirectsQuery struct {
 		Redirects []Redirect `graphql:"redirects(clientId: $clientId)"`
 	}

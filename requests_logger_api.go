@@ -16,7 +16,7 @@ type LogResponse struct {
 	Message string `graphql:"message"`
 }
 
-func (gql *GraphQLClient) executeLogRequestsMutation(requestsMap *map[string]time.Time) (LogResponse, error) {
+func (gql *GraphQLClient) ExecuteLogRequestsMutation(requestsMap *map[string]time.Time) (LogResponse, error) {
 	var logMutation struct {
 		LogResponse `graphql:"logRequests(logRequestsInput: $logRequestsInput)"`
 	}

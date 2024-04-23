@@ -12,14 +12,13 @@ func main() {
 
 	var tokenData = NewTokenData()
 	var graphqlClient = NewGraphQLClient(tokenData)
-	var logger = NewLogger("requests.log", graphqlClient)
-	var redirectManager = NewRedirectManager(dbConnect("redirects.db"), graphqlClient, tokenData, logger)
 
+	var logger = NewLogger("requests.log", graphqlClient)
+	logger.SendLogsWeekly()
+
+	var redirectManager = NewRedirectManager(dbConnect("redirects.db"), graphqlClient, tokenData, logger)
 	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.PopulateTrieWithRedirects()
-
-	// Start a goroutine to send request logs periodically
-	go logger.SendLogs()
 
 	//Create channels for fetching redirects periodically
 	var redirectsCh = make(chan []Redirect)
@@ -49,6 +48,5 @@ func dbConnect(file string) *sql.DB {
 	if err != nil {
 		log.Fatal("Database connection issues: ", err)
 	}
-
 	return db
 }

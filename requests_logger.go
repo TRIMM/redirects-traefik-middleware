@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/robfig/cron/v3"
 	"log"
 	"os"
 	"strings"
@@ -26,29 +27,30 @@ func NewLogger(fileName string, gqlClient *GraphQLClient) *Logger {
 	}
 }
 
+// SendLogsWeekly starts a cron job to send request logs weekly
+func (l *Logger) SendLogsWeekly() {
+	c := cron.New()
+	_, err := c.AddFunc("@weekly", func() {
+		l.SendLogs()
+	})
+	if err != nil {
+		log.Fatalf("Error scheduling cron job: %v", err)
+	}
+	c.Start()
+}
+
 func (l *Logger) SendLogs() {
-	ticker := time.NewTicker(20 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			l.mutex.Lock()
-			err := l.LoadLoggedRequests()
-			if err != nil {
-				log.Println(err)
-			}
-
-			response, err := l.gqlClient.executeLogRequestsMutation(&l.requestsMap)
-			if err != nil {
-				log.Println("Failed to execute GraphQL mutation:", err)
-			}
-
-			fmt.Println(response.Message)
-			l.mutex.Unlock()
-		}
+	err := l.LoadLoggedRequests()
+	if err != nil {
+		log.Println(err)
 	}
 
+	response, err := l.gqlClient.ExecuteLogRequestsMutation(&l.requestsMap)
+	if err != nil {
+		log.Println("Failed to execute GraphQL mutation:", err)
+	}
+
+	fmt.Println(response.Message)
 }
 
 // LoadLoggedRequests loads the requestsMap with data from the .log file
