@@ -1,8 +1,0 @@
-displayName: TRIMM Redirect plugin
-
-type: middleware
-
-summary: "Redirect based on the entries received from the Central API: https://gitlab.trimm.nl/technology/platform-applications/redneck"
-
-testData:
-  redirectsUrl: "redirects_api:9922"
