@@ -29,13 +29,12 @@ type RedirectsPlugin struct {
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	authData := api.NewAuthData(config.ClientName, config.ClientSecret, config.ServerURL)
-	tokenData := api.NewTokenData()
-	graphqlClient := api.NewGraphQLClient(tokenData, authData)
+	graphqlClient := api.NewGraphQLClient(authData)
 
 	logger := NewLogger(config.LogFilePath, graphqlClient)
 	logger.SendLogsWeekly()
 
-	var redirectManager = NewRedirectManager(dbConnect(config.DBFilePath), graphqlClient, tokenData, logger)
+	var redirectManager = NewRedirectManager(dbConnect(config.DBFilePath), graphqlClient, logger)
 	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.PopulateTrieWithRedirects()
 

@@ -23,7 +23,7 @@ func (gql *GraphQLClient) ExecuteRedirectsQuery(clientId string) ([]Redirect, er
 		"clientId": graphql.String(clientId),
 	}
 
-	err := gql.client.Query(context.Background(), &redirectsQuery, vars)
+	err := gql.GetClient().Query(context.Background(), &redirectsQuery, vars)
 	if err != nil {
 		log.Println("GraphQL server not reachable!", err)
 		return nil, err
