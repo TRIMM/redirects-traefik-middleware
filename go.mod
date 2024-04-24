@@ -3,11 +3,9 @@ module redneck-traefik-middleware
 go 1.22.1
 
 require (
-	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/robfig/cron/v3 v3.0.0
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
-	github.com/traefik/yaegi v0.16.1
 	golang.org/x/oauth2 v0.18.0
 	gopkg.in/square/go-jose.v2 v2.6.0
 )
