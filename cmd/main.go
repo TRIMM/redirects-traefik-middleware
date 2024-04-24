@@ -12,13 +12,12 @@ func main() {
 	// Load env variables
 	loadEnv()
 
-	var tokenData = api.NewTokenData()
-	var graphqlClient = api.NewGraphQLClient(tokenData)
+	var graphqlClient = api.NewGraphQLClient()
 
 	var logger = app.NewLogger("requests.log", graphqlClient)
 	logger.SendLogsWeekly()
 
-	var redirectManager = app.NewRedirectManager(dbConnect("redirects.db"), graphqlClient, tokenData, logger)
+	var redirectManager = app.NewRedirectManager(dbConnect("redirects.db"), graphqlClient, logger)
 	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.PopulateTrieWithRedirects()
 

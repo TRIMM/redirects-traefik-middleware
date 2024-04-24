@@ -14,18 +14,16 @@ type RedirectManager struct {
 	gqlClient    *api.GraphQLClient
 	redirects    map[string]*api.Redirect
 	trie         *Trie
-	tokenData    *api.TokenData
 	logger       *Logger
 	lastSyncTime time.Time
 }
 
-func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient, tokenData *api.TokenData, logger *Logger) *RedirectManager {
+func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient, logger *Logger) *RedirectManager {
 	return &RedirectManager{
 		db:           db,
 		gqlClient:    gqlClient,
 		redirects:    make(map[string]*api.Redirect),
 		trie:         NewTrie(),
-		tokenData:    tokenData,
 		logger:       logger,
 		lastSyncTime: time.Time{},
 	}
@@ -36,7 +34,7 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Re
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery(rm.tokenData.ClientId)
+			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery(rm.gqlClient.TokenData.ClientId)
 			if err != nil {
 				errCh <- err
 			} else {

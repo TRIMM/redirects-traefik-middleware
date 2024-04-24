@@ -35,7 +35,7 @@ func (gql *GraphQLClient) ExecuteLogRequestsMutation(requestsMap *map[string]tim
 		"logRequestsInput": logsInput,
 	}
 
-	err := gql.client.Mutate(context.Background(), &logMutation, vars)
+	err := gql.GetClient().Mutate(context.Background(), &logMutation, vars)
 	if err != nil {
 		log.Println("GraphQL server not reachable!", err)
 		return LogResponse{}, err

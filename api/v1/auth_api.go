@@ -37,32 +37,46 @@ func NewTokenData() *TokenData {
 }
 
 type GraphQLClient struct {
-	client *graphql.Client
+	client    *graphql.Client
+	TokenData *TokenData
+	authData  *AuthData
 }
 
-func NewGraphQLClient(tokenData *TokenData) *GraphQLClient {
-	token, err := tokenData.GetToken()
-	if err != nil {
-		log.Println("Failed to get token:", err)
-	}
-
+func NewGraphQLClient() *GraphQLClient {
 	return &GraphQLClient{
-		client: createGraphQLClient(token),
+		TokenData: NewTokenData(),
+		authData:  NewAuthData(),
 	}
 }
 
-func createGraphQLClient(token string) *graphql.Client {
-	src := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: token},
-	)
-	httpClient := oauth2.NewClient(context.Background(), src)
-	var client = graphql.NewClient(fmt.Sprintf("%s/graphql", os.Getenv("SERVER_URL")), httpClient)
+// GetClient makes sure the access token is refreshed
+func (gql *GraphQLClient) GetClient() *graphql.Client {
+	if gql.TokenData.Token == "" || isTokenExpired(gql.TokenData.Token) {
+		err := gql.GetNewAccessToken()
+		if err != nil {
+			log.Println("Failed to get token:", err)
+			return nil
+		}
+	}
 
-	return client
+	return gql.client
 }
 
-func (authData *AuthData) Auth() (string, error) {
-	marshalled, err := json.Marshal(authData)
+func (gql *GraphQLClient) GetNewAccessToken() error {
+	token, err := gql.Auth()
+	if err != nil {
+		log.Println("Authentication failed:", err)
+		return err
+	}
+	gql.UpdateGraphQLClient(token)
+	gql.SetClientIdFromClaims(token)
+	gql.TokenData.Token = token
+
+	return nil
+}
+
+func (gql *GraphQLClient) Auth() (string, error) {
+	marshalled, err := json.Marshal(gql.authData)
 	if err != nil {
 		return "", fmt.Errorf("error while building the auth request: %v", err)
 	}
@@ -95,32 +109,23 @@ func (authData *AuthData) Auth() (string, error) {
 	return tokenResponse.Token, nil
 }
 
-func (td *TokenData) GetToken() (string, error) {
-	if len(td.Token) == 0 || isTokenExpired(td.Token) {
-		auth := NewAuthData()
-		token, err := auth.Auth()
-		if err != nil {
-			log.Println("Authentication failed:", err)
-			return "", err
-		}
-		td.setClientIdFromClaims(token)
-		td.Token = token
+func (gql *GraphQLClient) UpdateGraphQLClient(token string) {
+	src := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token},
+	)
+	httpClient := oauth2.NewClient(context.Background(), src)
+	gql.client = graphql.NewClient(fmt.Sprintf("%s/graphql", os.Getenv("SERVER_URL")), httpClient)
+}
 
-		return token, nil
-	}
-
-	return td.Token, nil
+func (gql *GraphQLClient) SetClientIdFromClaims(tokenString string) {
+	claims := getClaimsFromToken(tokenString)
+	gql.TokenData.ClientId = claims.Subject
 }
 
 func isTokenExpired(tokenString string) bool {
-	var claims = getClaimsFromToken(tokenString)
+	claims := getClaimsFromToken(tokenString)
 
 	return claims.Expiry.Time().Before(time.Now())
-}
-
-func (td *TokenData) setClientIdFromClaims(tokenString string) {
-	var claims = getClaimsFromToken(tokenString)
-	td.ClientId = claims.Subject
 }
 
 func getClaimsFromToken(tokenString string) jwt.Claims {
