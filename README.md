@@ -1,20 +1,50 @@
 # TRIMM Redirects Traefik Middleware
 
 ## Introduction
-This project is a Traefik middleware written in Go Lang.
+This plugin is a Traefik middleware written in Go Lang.
 The purpose of it is to redirect the user according to rules processed from the Central API backend.
 
-## Instructions
+## Traefik Configuration
 
-### 1. Create an .env file
-In the project directory you need to create a `.env` file. You can copy the values from
-the `.env.example` file and overwrite the values with valid ones.
+### Static
+#### traefik.yml
 
-### 2. Make sure the Central API backend is running
-For this, there is an instruction manual in the following project:
-https://gitlab.trimm.nl/technology/platform-applications/redneck
+```yaml
+experimental:
+  plugins:
+    redirects-traefik-middleware:
+      moduleName: github.com/TRIMM/redirects-traefik-middleware
+      version: "v0.1.0"
+```
 
-### 3. Run the application
-If you are using GoLand, then you can just run the application using the play or debug button.
+### Dynamic
+#### http.yml
 
-In any other case, open the terminal in the current directory, and you can just run the `go run cmd/main.go` command.
+```yaml
+http:
+  routers:
+    my-router:
+      rule: host(`demo.localhost`)
+      service: service-foo
+      entryPoints:
+        web:
+        address: ":80"
+      middlewares:
+        - redirects-traefik-middleware
+
+  services:
+    service-foo:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:5000
+
+  middlewares:
+    redirects-traefik-middleware:
+      plugin:
+        redirects-traefik-middleware:
+          clientName: "Traefik Middleware"
+          clientSecret: "Test1234"
+          serverURL: "http://127.0.0.1:3000"
+          logFilePath: "requests.log"
+          dbFilePath: "requests.db"
+```

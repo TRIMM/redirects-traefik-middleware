@@ -14,17 +14,15 @@ type RedirectManager struct {
 	gqlClient    *api.GraphQLClient
 	redirects    map[string]*api.Redirect
 	trie         *Trie
-	logger       *Logger
 	lastSyncTime time.Time
 }
 
-func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient, logger *Logger) *RedirectManager {
+func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient) *RedirectManager {
 	return &RedirectManager{
 		db:           db,
 		gqlClient:    gqlClient,
 		redirects:    make(map[string]*api.Redirect),
 		trie:         NewTrie(),
-		logger:       logger,
 		lastSyncTime: time.Time{},
 	}
 }
