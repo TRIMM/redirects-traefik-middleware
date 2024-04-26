@@ -1,4 +1,4 @@
-package redneck_traefik_middleware
+package redirects_traefik_middleware
 
 import (
 	"context"
