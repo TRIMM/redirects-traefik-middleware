@@ -25,6 +25,7 @@ type RedirectsPlugin struct {
 	next             http.Handler
 	name             string
 	redirectsManager *RedirectManager
+	logger           *Logger
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
@@ -34,7 +35,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	logger := NewLogger(config.LogFilePath, graphqlClient)
 	logger.SendLogsWeekly()
 
-	var redirectManager = NewRedirectManager(dbConnect(config.DBFilePath), graphqlClient, logger)
+	var redirectManager = NewRedirectManager(dbConnect(config.DBFilePath), graphqlClient)
 	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.PopulateTrieWithRedirects()
 
@@ -53,6 +54,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	return &RedirectsPlugin{
 		next:             next,
 		redirectsManager: redirectManager,
+		logger:           logger,
 	}, nil
 }
 
@@ -62,7 +64,7 @@ If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	if err := rp.redirectsManager.logger.LogRequest(request); err != nil {
+	if err := rp.logger.LogRequest(request); err != nil {
 		log.Println("Failed to log request to file: ", err)
 	}
 
