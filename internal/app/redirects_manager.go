@@ -13,7 +13,7 @@ type RedirectManager struct {
 	db           *sql.DB
 	gqlClient    *api.GraphQLClient
 	redirects    map[string]*api.Redirect
-	trie         *Trie
+	Trie         *Trie
 	lastSyncTime time.Time
 }
 
@@ -22,7 +22,7 @@ func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient) *RedirectManag
 		db:           db,
 		gqlClient:    gqlClient,
 		redirects:    make(map[string]*api.Redirect),
-		trie:         NewTrie(),
+		Trie:         NewTrie(),
 		lastSyncTime: time.Time{},
 	}
 }
@@ -138,9 +138,9 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 }
 
 func (rm *RedirectManager) PopulateTrieWithRedirects() {
-	rm.trie.Clear()
+	rm.Trie.Clear()
 	for _, r := range rm.redirects {
-		rm.trie.Insert(r.FromURL, r.ToURL)
+		rm.Trie.Insert(r.FromURL, r.ToURL)
 	}
 }
 
