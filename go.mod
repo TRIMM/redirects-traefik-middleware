@@ -1,4 +1,4 @@
-module redneck-traefik-middleware
+module redirects-traefik-middleware
 
 go 1.22.1
 

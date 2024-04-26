@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
-	api "redneck-traefik-middleware/api/v1"
+	api "redirects-traefik-middleware/api/v1"
 	"strings"
 )
 
