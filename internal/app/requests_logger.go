@@ -6,7 +6,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
-	"redneck-traefik-middleware/api/v1"
+	"redirects-traefik-middleware/api/v1"
 	"strings"
 	"sync"
 	"time"

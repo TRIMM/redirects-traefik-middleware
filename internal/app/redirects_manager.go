@@ -5,7 +5,7 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
-	api "redneck-traefik-middleware/api/v1"
+	api "redirects-traefik-middleware/api/v1"
 	"time"
 )
 
