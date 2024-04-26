@@ -3,10 +3,10 @@ package app
 import (
 	"bufio"
 	"fmt"
+	"github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/robfig/cron/v3"
 	"log"
 	"os"
-	"redirects-traefik-middleware/api/v1"
 	"strings"
 	"sync"
 	"time"

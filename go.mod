@@ -1,4 +1,4 @@
-module redirects-traefik-middleware
+module github.com/TRIMM/redirects-traefik-middleware
 
 go 1.22.1
 

@@ -3,9 +3,9 @@ package app
 import (
 	"database/sql"
 	"fmt"
+	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
-	api "redirects-traefik-middleware/api/v1"
 	"time"
 )
 

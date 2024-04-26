@@ -3,9 +3,9 @@ package app
 import (
 	"context"
 	"database/sql"
+	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"log"
 	"net/http"
-	api "redirects-traefik-middleware/api/v1"
 	"strings"
 )
 
