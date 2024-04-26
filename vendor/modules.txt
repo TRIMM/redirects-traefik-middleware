@@ -1,3 +1,6 @@
+# github.com/golang-jwt/jwt/v5 v5.2.1
+## explicit; go 1.18
+github.com/golang-jwt/jwt/v5
 # github.com/mattn/go-sqlite3 v1.14.22
 ## explicit; go 1.19
 github.com/mattn/go-sqlite3
@@ -9,19 +12,7 @@ github.com/robfig/cron/v3
 github.com/shurcooL/graphql
 github.com/shurcooL/graphql/ident
 github.com/shurcooL/graphql/internal/jsonutil
-# github.com/stretchr/testify v1.9.0
-## explicit; go 1.17
-# golang.org/x/crypto v0.22.0
-## explicit; go 1.18
-golang.org/x/crypto/ed25519
-golang.org/x/crypto/pbkdf2
 # golang.org/x/oauth2 v0.19.0
 ## explicit; go 1.18
 golang.org/x/oauth2
 golang.org/x/oauth2/internal
-# gopkg.in/square/go-jose.v2 v2.6.0
-## explicit
-gopkg.in/square/go-jose.v2
-gopkg.in/square/go-jose.v2/cipher
-gopkg.in/square/go-jose.v2/json
-gopkg.in/square/go-jose.v2/jwt

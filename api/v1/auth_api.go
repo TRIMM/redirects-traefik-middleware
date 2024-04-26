@@ -5,13 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 	"log"
 	"net/http"
 	"time"
-
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 type AuthData struct {
@@ -119,26 +118,48 @@ func (gql *GraphQLClient) UpdateGraphQLClient(token string) {
 }
 
 func (gql *GraphQLClient) SetClientIdFromClaims(tokenString string) {
-	claims := getClaimsFromToken(tokenString)
-	gql.TokenData.ClientId = claims.Subject
+	claims, err := parseToken(tokenString)
+	if err != nil {
+		log.Println("Error parsing token:", err)
+		return
+	}
+
+	clientId, ok := claims["sub"].(string)
+	if !ok {
+		log.Println("Client ID not found in token claims")
+		return
+	}
+
+	gql.TokenData.ClientId = clientId
 }
 
 func isTokenExpired(tokenString string) bool {
-	claims := getClaimsFromToken(tokenString)
+	claims, err := parseToken(tokenString)
+	if err != nil {
+		log.Println("Error parsing token:", err)
+		return true
+	}
 
-	return claims.Expiry.Time().Before(time.Now())
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		log.Println("Expiration time not found in token claims")
+		return true
+	}
+
+	expiryTime := time.Unix(int64(exp), 0)
+	return expiryTime.Before(time.Now())
 }
 
-func getClaimsFromToken(tokenString string) jwt.Claims {
-	parsedToken, err := jwt.ParseSigned(tokenString)
+func parseToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, nil)
 	if err != nil {
-		log.Println("Failed to parse token:", err)
+		return nil, fmt.Errorf("failed to parse token: %v", err)
 	}
 
-	var claims jwt.Claims
-	if err := parsedToken.UnsafeClaimsWithoutVerification(&claims); err != nil {
-		log.Println("Failed to extract claims from token:", err)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("token is invalid")
 	}
 
-	return claims
+	return claims, nil
 }
