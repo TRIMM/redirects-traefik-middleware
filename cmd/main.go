@@ -7,19 +7,20 @@ import (
 
 func main() {
 	config := NewAppConfig()
-	authData := api.NewAuthData(config.clientName, config.clientSecret, config.serverURL)
+
+	authData := api.NewAuthData(config.clientName, config.clientSecret, config.serverURL, config.jwtSecret)
 	graphqlClient := api.NewGraphQLClient(authData)
 
 	logger := app.NewLogger(config.logFilePath, graphqlClient)
 	logger.SendLogsWeekly()
 
-	var redirectManager = app.NewRedirectManager(dbConnect(config.dbFilePath), graphqlClient)
+	redirectManager := app.NewRedirectManager(dbConnect(config.dbFilePath), graphqlClient)
 	redirectManager.PopulateMapWithDataFromDB()
 	redirectManager.PopulateTrieWithRedirects()
 
 	//Create channels for fetching redirects periodically
-	var redirectsCh = make(chan []api.Redirect)
-	var errCh = make(chan error)
+	redirectsCh := make(chan []api.Redirect)
+	errCh := make(chan error)
 
 	go func() {
 		defer close(redirectsCh)

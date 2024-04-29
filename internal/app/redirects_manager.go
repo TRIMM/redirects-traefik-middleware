@@ -32,7 +32,7 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Re
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery(rm.gqlClient.TokenData.ClientId)
+			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery()
 			if err != nil {
 				errCh <- err
 			} else {
