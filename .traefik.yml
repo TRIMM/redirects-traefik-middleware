@@ -7,8 +7,4 @@ import: github.com/TRIMM/redirects-traefik-middleware
 summary: "Redirect based on the entries received from the Central API."
 
 testData:
-  clientName: "Traefik Middleware"
-  clientSecret: "Test1234"
-  serverURL: "http://localhost:3000"
-  logFilePath: "requests.log"
-  dbFilePath: "requests.db"
+  redirectsURL: "redirects_manager:9922"
