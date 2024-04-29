@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  redirects-middleware:
+    build:
+      context: .
+      args:
+        GO_VERSION: ${GO_VERSION}
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      GOPATH: /app
+    env_file:
+      - .env

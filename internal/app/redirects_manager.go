@@ -44,6 +44,19 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Re
 }
 
 func (rm *RedirectManager) PopulateMapWithDataFromDB() {
+	_, err := rm.db.Exec(`
+		CREATE TABLE IF NOT EXISTS redirects (
+		    id TEXT PRIMARY KEY,
+		    fromURL TEXT,
+		    toURL TEXT,
+		    updatedAt date
+		)
+	`)
+	if err != nil {
+		log.Println("Error creating redirects table:", err)
+		return
+	}
+
 	rows, err := rm.db.Query("SELECT * FROM redirects")
 	if err != nil {
 		log.Println("Error retrieving SQL records:", err)

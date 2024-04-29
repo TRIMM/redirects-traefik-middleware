@@ -42,9 +42,5 @@ http:
     redirects-traefik-middleware:
       plugin:
         redirects-traefik-middleware:
-          clientName: "Traefik Middleware"
-          clientSecret: "Test1234"
-          serverURL: "http://127.0.0.1:3000"
-          logFilePath: "requests.log"
-          dbFilePath: "requests.db"
+          redirectsURL: "redirects-middleware:8080"
 ```

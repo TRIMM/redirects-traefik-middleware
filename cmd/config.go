@@ -17,7 +17,7 @@ type AppConfig struct {
 }
 
 func NewAppConfig() *AppConfig {
-	loadEnv()
+	//loadEnv()
 	return &AppConfig{
 		clientName:   os.Getenv("CLIENT_NAME"),
 		clientSecret: os.Getenv("CLIENT_SECRET"),
@@ -31,7 +31,7 @@ func NewAppConfig() *AppConfig {
 func loadEnv() {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error loading .env file: ", err)
 	}
 }
 
