@@ -2,20 +2,13 @@ package redirects_traefik_middleware
 
 import (
 	"context"
-	"database/sql"
-	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
-	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
-	"log"
+	"fmt"
 	"net/http"
 	"strings"
 )
 
 type Config struct {
-	ClientName   string `json:"clientName,omitempty"`
-	ClientSecret string `json:"clientSecret,omitempty"`
-	ServerURL    string `json:"serverURL,omitempty"`
-	LogFilePath  string `json:"logFilePath,omitempty"`
-	DBFilePath   string `json:"dbFilePath,omitempty"`
+	RedirectsAppURL string `json:"redirectsAppURL,omitempty"`
 }
 
 func CreateConfig() *Config {
@@ -23,58 +16,35 @@ func CreateConfig() *Config {
 }
 
 type RedirectsPlugin struct {
-	next             http.Handler
-	name             string
-	redirectsManager *app.RedirectManager
-	logger           *app.Logger
+	next            http.Handler
+	name            string
+	redirectsAppURL string
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	authData := api.NewAuthData(config.ClientName, config.ClientSecret, config.ServerURL)
-	graphqlClient := api.NewGraphQLClient(authData)
+	fmt.Println("Redirects Traefik Middleware v0.1.4")
 
-	logger := app.NewLogger(config.LogFilePath, graphqlClient)
-	logger.SendLogsWeekly()
+	if len(config.RedirectsAppURL) == 0 {
+		return nil, fmt.Errorf("RedirectsPlugin 'redirectsURL' cannot be empty")
+	}
 
-	var redirectManager = app.NewRedirectManager(dbConnect(config.DBFilePath), graphqlClient)
-	redirectManager.PopulateMapWithDataFromDB()
-	redirectManager.PopulateTrieWithRedirects()
-
-	//Create channels for fetching redirects periodically
-	var redirectsCh = make(chan []api.Redirect)
-	var errCh = make(chan error)
-
-	go func() {
-		defer close(redirectsCh)
-		defer close(errCh)
-
-		redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
-	}()
-	redirectManager.SyncRedirects(redirectsCh, errCh)
+	fmt.Println("RedirectsPlugin redirectsURL [" + strings.ToLower(config.RedirectsAppURL) + "]")
 
 	return &RedirectsPlugin{
-		next:             next,
-		redirectsManager: redirectManager,
-		logger:           logger,
+		next:            next,
+		name:            name,
+		redirectsAppURL: config.RedirectsAppURL,
 	}, nil
 }
 
 /*
-ServeHTTP intercepts a request and matches it against the existing rules presented in the Trie Data structure
+ServeHTTP intercepts a request and matches it against the existing rules
 If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	if err := rp.logger.LogRequest(request); err != nil {
-		log.Println("Failed to log request to file: ", err)
-	}
+	fmt.Println(request)
 
-	redirectURL, ok := rp.redirectsManager.Trie.Match(request)
-	if !ok {
-		log.Println("No matching redirect rule found!")
-	}
-
-	http.Redirect(rw, req, redirectURL, http.StatusFound)
 }
 
 func getFullURL(req *http.Request) string {
@@ -90,12 +60,4 @@ func getFullURL(req *http.Request) string {
 
 	var answer = proto + host + req.URL.Path
 	return strings.ToLower(answer)
-}
-
-func dbConnect(file string) *sql.DB {
-	db, err := sql.Open("sqlite3", file)
-	if err != nil {
-		log.Fatal("Database connection issues: ", err)
-	}
-	return db
 }

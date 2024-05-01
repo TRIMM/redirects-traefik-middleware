@@ -1,0 +1,22 @@
+http:
+  routers:
+    my-router:
+      rule: host(`demo.localhost`)
+      service: service-foo
+      entryPoints:
+        web:
+        address: ":80"
+      middlewares:
+        - redirects-traefik-middleware
+
+  services:
+    service-foo:
+      loadBalancer:
+        servers:
+          - url: http://127.0.0.1:5000
+
+  middlewares:
+    redirects-traefik-middleware:
+      plugin:
+        redirects-traefik-middleware:
+          redirectsAppURL: "redirects-middleware:8081"

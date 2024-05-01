@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 	"github.com/shurcooL/graphql"
 	"log"
 	"time"
@@ -14,16 +15,20 @@ type Redirect struct {
 	UpdatedAt time.Time `graphql:"updatedAt"`
 }
 
-func (gql *GraphQLClient) ExecuteRedirectsQuery(clientId string) ([]Redirect, error) {
+func (gql *GraphQLClient) ExecuteRedirectsQuery() ([]Redirect, error) {
 	var redirectsQuery struct {
 		Redirects []Redirect `graphql:"redirects(clientId: $clientId)"`
 	}
 
+	client := gql.GetClient()
+	if client == nil {
+		return nil, fmt.Errorf("GraphQL client not initialized")
+	}
 	vars := map[string]interface{}{
-		"clientId": graphql.String(clientId),
+		"clientId": graphql.String(gql.TokenData.ClientId),
 	}
 
-	err := gql.GetClient().Query(context.Background(), &redirectsQuery, vars)
+	err := client.Query(context.Background(), &redirectsQuery, vars)
 	if err != nil {
 		log.Println("GraphQL server not reachable!", err)
 		return nil, err

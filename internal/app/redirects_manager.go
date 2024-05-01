@@ -32,7 +32,7 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Re
 		select {
 		//The time interval is experimental (for testing). For production change the time accordingly
 		case <-time.After(10 * time.Second):
-			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery(rm.gqlClient.TokenData.ClientId)
+			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery()
 			if err != nil {
 				errCh <- err
 			} else {
@@ -44,6 +44,19 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Re
 }
 
 func (rm *RedirectManager) PopulateMapWithDataFromDB() {
+	_, err := rm.db.Exec(`
+		CREATE TABLE IF NOT EXISTS redirects (
+		    id TEXT PRIMARY KEY,
+		    fromURL TEXT,
+		    toURL TEXT,
+		    updatedAt date
+		)
+	`)
+	if err != nil {
+		log.Println("Error creating redirects table:", err)
+		return
+	}
+
 	rows, err := rm.db.Query("SELECT * FROM redirects")
 	if err != nil {
 		log.Println("Error retrieving SQL records:", err)

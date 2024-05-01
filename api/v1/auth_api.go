@@ -17,6 +17,7 @@ type AuthData struct {
 	ClientName   string `json:"clientName"`
 	ClientSecret string `json:"clientSecret"`
 	ServerURL    string `json:"serverURL"`
+	JwtSecret    string `json:"jwtSecret"`
 }
 
 type TokenData struct {
@@ -30,11 +31,12 @@ type GraphQLClient struct {
 	authData  *AuthData
 }
 
-func NewAuthData(clientName string, clientSecret string, serverURL string) *AuthData {
+func NewAuthData(clientName string, clientSecret string, serverURL string, jwtSecret string) *AuthData {
 	return &AuthData{
 		ClientName:   clientName,
 		ClientSecret: clientSecret,
 		ServerURL:    serverURL,
+		JwtSecret:    jwtSecret,
 	}
 }
 
@@ -51,8 +53,8 @@ func NewGraphQLClient(authData *AuthData) *GraphQLClient {
 
 // GetClient makes sure the access token is refreshed
 func (gql *GraphQLClient) GetClient() *graphql.Client {
-	if gql.TokenData.Token == "" || isTokenExpired(gql.TokenData.Token) {
-		err := gql.GetNewAccessToken()
+	if gql.TokenData.Token == "" || gql.isTokenExpired(gql.TokenData.Token) {
+		err := gql.getNewAccessToken()
 		if err != nil {
 			log.Println("Failed to get token:", err)
 			return nil
@@ -62,20 +64,20 @@ func (gql *GraphQLClient) GetClient() *graphql.Client {
 	return gql.client
 }
 
-func (gql *GraphQLClient) GetNewAccessToken() error {
-	token, err := gql.Auth()
+func (gql *GraphQLClient) getNewAccessToken() error {
+	token, err := gql.auth()
 	if err != nil {
 		log.Println("Authentication failed:", err)
 		return err
 	}
-	gql.UpdateGraphQLClient(token)
-	gql.SetClientIdFromClaims(token)
+	gql.updateGraphQLClient(token)
+	gql.setClientIdFromClaims(token)
 	gql.TokenData.Token = token
 
 	return nil
 }
 
-func (gql *GraphQLClient) Auth() (string, error) {
+func (gql *GraphQLClient) auth() (string, error) {
 	marshalled, err := json.Marshal(gql.authData)
 	if err != nil {
 		return "", fmt.Errorf("error while building the auth request: %v", err)
@@ -109,7 +111,7 @@ func (gql *GraphQLClient) Auth() (string, error) {
 	return tokenResponse.Token, nil
 }
 
-func (gql *GraphQLClient) UpdateGraphQLClient(token string) {
+func (gql *GraphQLClient) updateGraphQLClient(token string) {
 	src := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
@@ -117,8 +119,8 @@ func (gql *GraphQLClient) UpdateGraphQLClient(token string) {
 	gql.client = graphql.NewClient(fmt.Sprintf("%s/graphql", gql.authData.ServerURL), httpClient)
 }
 
-func (gql *GraphQLClient) SetClientIdFromClaims(tokenString string) {
-	claims, err := parseToken(tokenString)
+func (gql *GraphQLClient) setClientIdFromClaims(tokenString string) {
+	claims, err := gql.parseToken(tokenString)
 	if err != nil {
 		log.Println("Error parsing token:", err)
 		return
@@ -133,8 +135,8 @@ func (gql *GraphQLClient) SetClientIdFromClaims(tokenString string) {
 	gql.TokenData.ClientId = clientId
 }
 
-func isTokenExpired(tokenString string) bool {
-	claims, err := parseToken(tokenString)
+func (gql *GraphQLClient) isTokenExpired(tokenString string) bool {
+	claims, err := gql.parseToken(tokenString)
 	if err != nil {
 		log.Println("Error parsing token:", err)
 		return true
@@ -150,8 +152,10 @@ func isTokenExpired(tokenString string) bool {
 	return expiryTime.Before(time.Now())
 }
 
-func parseToken(tokenString string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenString, nil)
+func (gql *GraphQLClient) parseToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(gql.authData.JwtSecret), nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse token: %v", err)
 	}
