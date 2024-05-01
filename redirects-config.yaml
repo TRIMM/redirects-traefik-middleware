@@ -19,4 +19,4 @@ http:
     redirects-traefik-middleware:
       plugin:
         redirects-traefik-middleware:
-          redirectsAppURL: "redirects-middleware:8081"
+          redirectsAppURL: "redirects-app:8081"
