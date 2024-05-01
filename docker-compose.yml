@@ -1,15 +1,49 @@
 version: '3.8'
 
+x-networks: &networks
+  networks:
+    - redirects-traefik-middleware
+
 services:
-  redirects-middleware:
+  redirects-app:
+    container_name: redirects-app
     build:
       context: .
       args:
         GO_VERSION: ${GO_VERSION}
     ports:
-      - "80:80"
-      - "443:443"
+      - "8081:80"
+      - "8443:443"
     environment:
       GOPATH: /app
     env_file:
       - .env
+    <<: *networks
+
+  traefik:
+    image: traefik:latest
+    ports:
+      - "8000:80"
+      - "8080:8080"
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --entrypoints.http.address=:80
+      - --providers.file.filename=/redirects-config.yaml
+      - --experimental.plugins.redirects-traefik-middleware.modulename=github.com/TRIMM/redirects-traefik-middleware
+      - --experimental.plugins.redirects-traefik-middleware.version=v0.1.3
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./redirects-config.yaml:/redirects-config.yaml
+    <<: *networks
+
+  whoami:
+    image: traefik/whoami
+    labels:
+      traefik.http.routers.whoami.rule: Host(`whoami.docker.local`)
+      traefik.http.routers.whoami.middlewares: redirects-traefik-middleware@file
+    <<: *networks
+
+networks:
+  redirects-traefik-middleware:

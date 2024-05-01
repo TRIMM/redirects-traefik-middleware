@@ -9,7 +9,6 @@ ENV GOPATH /app
 
 RUN mkdir -p /app/redirects-traefik-middleware
 ADD ./go.* /app/redirects-traefik-middleware/
-#ADD redirects.db /app/redirects-traefik-middleware/
 ADD ./cmd  /app/redirects-traefik-middleware/cmd
 ADD ./api  /app/redirects-traefik-middleware/api
 ADD ./internal /app/redirects-traefik-middleware/internal

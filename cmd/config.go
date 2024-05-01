@@ -17,7 +17,7 @@ type AppConfig struct {
 }
 
 func NewAppConfig() *AppConfig {
-	//loadEnv()
+	loadEnv()
 	return &AppConfig{
 		clientName:   os.Getenv("CLIENT_NAME"),
 		clientSecret: os.Getenv("CLIENT_SECRET"),
@@ -29,9 +29,14 @@ func NewAppConfig() *AppConfig {
 }
 
 func loadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file: ", err)
+	if _, err := os.Stat(".env"); os.IsNotExist(err) {
+		log.Println("no local .env file, using docker env vars")
+		return
+	}
+
+	if err := godotenv.Load(); err != nil {
+		log.Println("Error loading .env file:", err)
+		log.Println("Using default values")
 	}
 }
 
