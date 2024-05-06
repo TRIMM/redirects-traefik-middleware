@@ -14,7 +14,7 @@ experimental:
   plugins:
     redirects-traefik-middleware:
       moduleName: github.com/TRIMM/redirects-traefik-middleware
-      version: "v0.1.0"
+      version: "v0.1.5"
 ```
 
 ### Dynamic
@@ -42,5 +42,5 @@ http:
     redirects-traefik-middleware:
       plugin:
         redirects-traefik-middleware:
-          redirectsURL: "redirects-middleware:8080"
+          redirectsAppURL: "redirects-app:8081"
 ```
