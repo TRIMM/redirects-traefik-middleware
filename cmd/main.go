@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
+	"log"
+	"net/http"
 )
 
 func main() {
@@ -28,5 +31,29 @@ func main() {
 
 		redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
 	}()
-	redirectManager.SyncRedirects(redirectsCh, errCh)
+	go redirectManager.SyncRedirects(redirectsCh, errCh)
+
+	// Register the handler
+	http.HandleFunc("/", handleRequest(logger, redirectManager))
+	log.Fatal(http.ListenAndServe(":8081", nil))
+}
+
+func handleRequest(logger *app.Logger, redirectManager *app.RedirectManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		request := r.URL.String()
+		fmt.Println("Handler side: " + request)
+
+		//Logging the incoming requests
+		if err := logger.LogRequest(request); err != nil {
+			log.Println("Failed to log request to file: ", err)
+		}
+
+		//Matching against the defined redirects
+		redirectURL, ok := redirectManager.Trie.Match(request)
+		if !ok {
+			redirectURL = "@empty"
+		}
+		// Write the redirectURL to the response
+		fmt.Fprint(w, redirectURL)
+	}
 }

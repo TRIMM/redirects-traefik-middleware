@@ -1,10 +1,14 @@
 package redirects_traefik_middleware
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -43,8 +47,30 @@ If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	fmt.Println(request)
+	fmt.Println("Plugin side: " + request)
+	var answerURL = req.Host
+	dial, dialErr := net.DialTimeout("tcp", rp.redirectsAppURL, 2*time.Second)
+	if dialErr != nil {
+		fmt.Println("The redirects middleware is not reachable on " + rp.redirectsAppURL)
+	} else {
+		defer func() {
+			err := dial.Close()
+			if err != nil {
+				log.Println("Error closing the connection:", err)
+			}
+		}()
 
+		fmt.Fprintf(dial, request+"\n")
+		answer, _ := bufio.NewReader(dial).ReadString('\n')
+		answerTrim := strings.TrimSuffix(answer, "\n")
+		if answerTrim != "@empty" {
+			answerURL = answerTrim
+			fmt.Println("Redirect exists: " + request + "-->" + answerURL)
+			http.Redirect(rw, req, answerURL, 302)
+		} else {
+			fmt.Println("Redirect does not exist!")
+		}
+	}
 }
 
 func getFullURL(req *http.Request) string {
