@@ -4,11 +4,13 @@ import (
 	"fmt"
 	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
+	"io"
 	"log"
 	"net/http"
 )
 
 func main() {
+	log.Println("Starting redirects-traefik-middleware")
 	config := NewAppConfig()
 
 	authData := api.NewAuthData(config.clientName, config.clientSecret, config.serverURL, config.jwtSecret)
@@ -40,20 +42,29 @@ func main() {
 
 func handleRequest(logger *app.Logger, redirectManager *app.RedirectManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		request := r.URL.String()
-		fmt.Println("Handler side: " + request)
+		requestBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
+			return
+		}
 
-		//Logging the incoming requests
+		request := string(requestBody)
+		log.Println("Handler side:", request)
+		// Logging the incoming requests
 		if err := logger.LogRequest(request); err != nil {
 			log.Println("Failed to log request to file: ", err)
 		}
 
-		//Matching against the defined redirects
+		// Matching against the defined redirects
 		redirectURL, ok := redirectManager.Trie.Match(request)
 		if !ok {
 			redirectURL = "@empty"
 		}
-		// Write the redirectURL to the response
-		fmt.Fprint(w, redirectURL)
+
+		// Write the redirect URL to the response
+		_, err = fmt.Fprintf(w, "%s", redirectURL)
+		if err != nil {
+			log.Println("Failed to write response:", err)
+		}
 	}
 }

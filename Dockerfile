@@ -22,6 +22,4 @@ FROM alpine:latest
 
 COPY --from=builder /app/redirects-traefik-middleware/app .
 
-EXPOSE 8080
-
 CMD ["./app"]

@@ -92,7 +92,7 @@ func (gql *GraphQLClient) auth() (string, error) {
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {
-			log.Println("Error closing file:", err)
+			log.Println("Error closing response body: ", err)
 		}
 	}()
 
@@ -149,7 +149,7 @@ func (gql *GraphQLClient) isTokenExpired(tokenString string) bool {
 	}
 
 	expiryTime := time.Unix(int64(exp), 0)
-	return expiryTime.Before(time.Now())
+	return expiryTime.Before(time.Now().Add(10 * time.Second))
 }
 
 func (gql *GraphQLClient) parseToken(tokenString string) (jwt.MapClaims, error) {

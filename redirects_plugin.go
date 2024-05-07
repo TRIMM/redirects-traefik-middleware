@@ -1,14 +1,12 @@
 package redirects_traefik_middleware
 
 import (
-	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
-	"net"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type Config struct {
@@ -26,13 +24,13 @@ type RedirectsPlugin struct {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	fmt.Println("Redirects Traefik Middleware v0.1.4")
+	log.Println("Redirects Traefik Middleware v0.1.6")
 
 	if len(config.RedirectsAppURL) == 0 {
 		return nil, fmt.Errorf("RedirectsPlugin 'redirectsURL' cannot be empty")
 	}
 
-	fmt.Println("RedirectsPlugin redirectsURL [" + strings.ToLower(config.RedirectsAppURL) + "]")
+	log.Println("RedirectsPlugin redirectsURL [" + strings.ToLower(config.RedirectsAppURL) + "]")
 
 	return &RedirectsPlugin{
 		next:            next,
@@ -47,30 +45,51 @@ If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	fmt.Println("Plugin side: " + request)
-	var answerURL = req.Host
-	dial, dialErr := net.DialTimeout("tcp", rp.redirectsAppURL, 2*time.Second)
-	if dialErr != nil {
-		fmt.Println("The redirects middleware is not reachable on " + rp.redirectsAppURL)
-	} else {
-		defer func() {
-			err := dial.Close()
-			if err != nil {
-				log.Println("Error closing the connection:", err)
-			}
-		}()
+	log.Println("Plugin side: " + request)
 
-		fmt.Fprintf(dial, request+"\n")
-		answer, _ := bufio.NewReader(dial).ReadString('\n')
-		answerTrim := strings.TrimSuffix(answer, "\n")
-		if answerTrim != "@empty" {
-			answerURL = answerTrim
-			fmt.Println("Redirect exists: " + request + "-->" + answerURL)
-			http.Redirect(rw, req, answerURL, 302)
-		} else {
-			fmt.Println("Redirect does not exist!")
-		}
+	var responseURL, err = sendHTTPRequest(rp.redirectsAppURL, request)
+	if err != nil {
+		log.Println("Error sending HTTP request:", err)
+		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
+
+	if responseURL != "@empty" {
+		log.Println("Redirect exists: " + request + "-->" + responseURL)
+		http.Redirect(rw, req, responseURL, http.StatusFound)
+	} else {
+		log.Println("Redirect does not exist: " + request + "-->" + responseURL)
+		http.NotFound(rw, req)
+	}
+}
+
+func sendHTTPRequest(appURL, request string) (string, error) {
+	var client = &http.Client{}
+	req, err := http.NewRequest("GET", appURL, strings.NewReader(request))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "text/plain")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		err := res.Body.Close()
+		if err != nil {
+			log.Println("Error closing response body: ", err)
+		}
+	}()
+
+	response, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(response), nil
 }
 
 func getFullURL(req *http.Request) string {

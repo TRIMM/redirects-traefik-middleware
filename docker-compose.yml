@@ -12,7 +12,7 @@ services:
       args:
         GO_VERSION: ${GO_VERSION}
     ports:
-      - "8081:80"
+      - "8081:8081"
       - "8443:443"
     environment:
       GOPATH: /app
@@ -30,13 +30,16 @@ services:
       - --api.dashboard=true
       - --api.insecure=true
       - --providers.docker=true
+      - --log.level=DEBUG
+      - --log.filePath=/logs/traefik.log
       - --entrypoints.http.address=:80
       - --providers.file.filename=/redirects-config.yaml
       - --experimental.plugins.redirects-traefik-middleware.modulename=github.com/TRIMM/redirects-traefik-middleware
-      - --experimental.plugins.redirects-traefik-middleware.version=v0.1.4
+      - --experimental.plugins.redirects-traefik-middleware.version=v0.1.6
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./redirects-config.yaml:/redirects-config.yaml
+      - ./logs/:/logs/
     <<: *networks
 
   whoami:
@@ -50,3 +53,4 @@ services:
 networks:
   redirects-traefik-middleware:
     name: redirects-traefik-middleware
+    external: true

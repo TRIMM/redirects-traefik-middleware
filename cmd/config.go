@@ -30,7 +30,6 @@ func NewAppConfig() *AppConfig {
 
 func loadEnv() {
 	if _, err := os.Stat(".env"); os.IsNotExist(err) {
-		log.Println("no local .env file, using docker env vars")
 		return
 	}
 
