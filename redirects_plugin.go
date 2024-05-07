@@ -30,7 +30,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, fmt.Errorf("RedirectsPlugin 'redirectsURL' cannot be empty")
 	}
 
-	log.Println("RedirectsPlugin redirectsURL [" + strings.ToLower(config.RedirectsAppURL) + "]")
+	log.Println("Redirects App Url [" + strings.ToLower(config.RedirectsAppURL) + "]")
 
 	return &RedirectsPlugin{
 		next:            next,
