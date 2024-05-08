@@ -13,6 +13,7 @@ ADD ./cmd       /app/redirects-traefik-middleware/cmd
 ADD ./api       /app/redirects-traefik-middleware/api
 ADD ./internal  /app/redirects-traefik-middleware/internal
 ADD ./pkg       /app/redirects-traefik-middleware/pkg
+ADD ./proto     /app/redirects-traefik-middleware/proto
 
 WORKDIR /app/redirects-traefik-middleware
 RUN go mod download

@@ -3,10 +3,13 @@ package redirects_traefik_middleware
 import (
 	"context"
 	"fmt"
-	"io"
+	pb "github.com/TRIMM/redirects-traefik-middleware/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -24,7 +27,7 @@ type RedirectsPlugin struct {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	log.Println("Redirects Traefik Middleware v0.1.6")
+	log.Println("Redirects Traefik Middleware v0.1.7")
 
 	if len(config.RedirectsAppURL) == 0 {
 		return nil, fmt.Errorf("RedirectsPlugin 'redirectsURL' cannot be empty")
@@ -46,9 +49,9 @@ If a match is found, it redirects accordingly
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
 
-	var responseURL, err = getRedirectMatch(rp.redirectsAppURL, request)
+	var responseURL, err = getRedirectResponse(rp.redirectsAppURL, request)
 	if err != nil {
-		log.Println("Error sending HTTP request:", err)
+		log.Println("Failed to connect to the gRPC server: ", err)
 		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -62,33 +65,25 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 }
 
-func getRedirectMatch(appURL, request string) (string, error) {
-	var client = &http.Client{}
-	req, err := http.NewRequest("GET", appURL, strings.NewReader(request))
+func getRedirectResponse(appURL, request string) (string, error) {
+	// Revise to grpc.WithTransportCredentials(credentials.NewTLS())
+	conn, err := grpc.Dial(appURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+
+	c := pb.NewRedirectServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	r, err := c.GetRedirectMatch(ctx, &pb.Request{Url: request})
 	if err != nil {
 		return "", err
 	}
 
-	req.Header.Set("Content-Type", "text/plain")
-
-	res, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-
-	defer func() {
-		err := res.Body.Close()
-		if err != nil {
-			log.Println("Error closing response body: ", err)
-		}
-	}()
-
-	response, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", err
-	}
-
-	return string(response), nil
+	return r.GetRedirectUrl(), nil
 }
 
 func getFullURL(req *http.Request) string {

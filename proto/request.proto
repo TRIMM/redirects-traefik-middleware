@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option go_package = "./proto";
+
+service RedirectService {
+  rpc GetRedirectMatch(Request) returns (Response) {}
+}
+
+message Request {
+  string url = 1;
+}
+
+message Response {
+  string redirect_url = 1;
+}
