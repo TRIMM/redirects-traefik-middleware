@@ -45,9 +45,8 @@ If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
-	log.Println("Plugin side: " + request)
 
-	var responseURL, err = sendHTTPRequest(rp.redirectsAppURL, request)
+	var responseURL, err = getRedirectMatch(rp.redirectsAppURL, request)
 	if err != nil {
 		log.Println("Error sending HTTP request:", err)
 		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
@@ -63,7 +62,7 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 }
 
-func sendHTTPRequest(appURL, request string) (string, error) {
+func getRedirectMatch(appURL, request string) (string, error) {
 	var client = &http.Client{}
 	req, err := http.NewRequest("GET", appURL, strings.NewReader(request))
 	if err != nil {

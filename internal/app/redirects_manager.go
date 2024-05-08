@@ -93,11 +93,9 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []api.Redirect, errC
 				rm.PopulateTrieWithRedirects()
 
 				rm.lastSyncTime = time.Now().UTC()
-				fmt.Println("Redirects synced at:", rm.lastSyncTime)
+				log.Println("Redirects synced at:", rm.lastSyncTime)
 				printRedirects(rm.redirects)
-				fmt.Printf("\n")
 			}
-
 		case err := <-errCh:
 			log.Println("Error syncing redirects:", err)
 		}
@@ -115,7 +113,7 @@ func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]api.Re
 			if err != nil {
 				log.Println("Error deleting old redirects:", err)
 			} else {
-				fmt.Println("Deleted old redirect:", id)
+				log.Println("Deleted old redirect:", id)
 			}
 		}
 	}
@@ -128,7 +126,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 			// Update existing redirect
 			if fr.UpdatedAt.After(rm.lastSyncTime) {
 				*r = fr
-				fmt.Println("Redirect updated:", fr.Id)
+				log.Println("Redirect updated:", fr.Id)
 				// Update the database record
 				err := rm.UpsertRedirect(fr)
 				if err != nil {
@@ -138,7 +136,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 		} else {
 			// Add new redirect
 			rm.redirects[fr.Id] = &fr
-			fmt.Println("Redirect added:", fr.Id)
+			log.Println("Redirect added:", fr.Id)
 
 			// Store the database record
 			err := rm.UpsertRedirect(fr)
@@ -193,8 +191,9 @@ func initializeRedirectMapIds(fetchedRedirects []api.Redirect) map[string]bool {
 }
 
 func printRedirects(redirectMap map[string]*api.Redirect) {
-	fmt.Println("Redirects:")
+	log.Println("Redirects:")
 	for id, r := range redirectMap {
 		fmt.Printf("ID: %s, FromURL: %s, ToURL: %s, UpdatedAt: %s\n", id, r.FromURL, r.ToURL, r.UpdatedAt)
 	}
+	fmt.Printf("\n")
 }

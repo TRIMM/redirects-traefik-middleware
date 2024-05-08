@@ -51,7 +51,7 @@ func (l *Logger) SendLogs() {
 		log.Println("Failed to execute GraphQL mutation:", err)
 	}
 
-	fmt.Println(response.Message)
+	log.Println(response.Message)
 }
 
 // LoadLoggedRequests loads the requestsMap with data from the .log file

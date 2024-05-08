@@ -78,7 +78,13 @@ func (gql *GraphQLClient) getNewAccessToken() error {
 }
 
 func (gql *GraphQLClient) auth() (string, error) {
-	marshalled, err := json.Marshal(gql.authData)
+	marshalled, err := json.Marshal(struct {
+		ClientName   string `json:"clientName"`
+		ClientSecret string `json:"clientSecret"`
+	}{
+		gql.authData.ClientName,
+		gql.authData.ClientSecret,
+	})
 	if err != nil {
 		return "", fmt.Errorf("error while building the auth request: %v", err)
 	}

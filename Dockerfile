@@ -8,10 +8,11 @@ RUN apk update && apk upgrade && \
 ENV GOPATH /app
 
 RUN mkdir -p /app/redirects-traefik-middleware
-ADD ./go.* /app/redirects-traefik-middleware/
-ADD ./cmd  /app/redirects-traefik-middleware/cmd
-ADD ./api  /app/redirects-traefik-middleware/api
-ADD ./internal /app/redirects-traefik-middleware/internal
+ADD ./go.*      /app/redirects-traefik-middleware/
+ADD ./cmd       /app/redirects-traefik-middleware/cmd
+ADD ./api       /app/redirects-traefik-middleware/api
+ADD ./internal  /app/redirects-traefik-middleware/internal
+ADD ./pkg       /app/redirects-traefik-middleware/pkg
 
 WORKDIR /app/redirects-traefik-middleware
 RUN go mod download

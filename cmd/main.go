@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
 	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
-	"io"
+	"github.com/TRIMM/redirects-traefik-middleware/pkg/handlers"
 	"log"
 	"net/http"
 )
@@ -35,36 +34,11 @@ func main() {
 	}()
 	go redirectManager.SyncRedirects(redirectsCh, errCh)
 
-	// Register the handler
-	http.HandleFunc("/", handleRequest(logger, redirectManager))
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	handleRequests(logger, redirectManager)
 }
 
-func handleRequest(logger *app.Logger, redirectManager *app.RedirectManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		requestBody, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusInternalServerError)
-			return
-		}
-
-		request := string(requestBody)
-		log.Println("Handler side:", request)
-		// Logging the incoming requests
-		if err := logger.LogRequest(request); err != nil {
-			log.Println("Failed to log request to file: ", err)
-		}
-
-		// Matching against the defined redirects
-		redirectURL, ok := redirectManager.Trie.Match(request)
-		if !ok {
-			redirectURL = "@empty"
-		}
-
-		// Write the redirect URL to the response
-		_, err = fmt.Fprintf(w, "%s", redirectURL)
-		if err != nil {
-			log.Println("Failed to write response:", err)
-		}
-	}
+// Register the handlers
+func handleRequests(logger *app.Logger, redirectManager *app.RedirectManager) {
+	http.HandleFunc("/", handlers.GetRedirectMatch(logger, redirectManager))
+	log.Fatal(http.ListenAndServe(":8081", nil))
 }
