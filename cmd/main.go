@@ -3,9 +3,10 @@ package main
 import (
 	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
-	"github.com/TRIMM/redirects-traefik-middleware/pkg/handlers"
+	handler "github.com/TRIMM/redirects-traefik-middleware/pkg/v1/handler/grpc"
+	"google.golang.org/grpc"
 	"log"
-	"net/http"
+	"net"
 )
 
 func main() {
@@ -34,11 +35,20 @@ func main() {
 	}()
 	go redirectManager.SyncRedirects(redirectsCh, errCh)
 
-	handleRequests(logger, redirectManager)
+	startGrpcServer(logger, redirectManager)
 }
 
-// Register the handlers
-func handleRequests(logger *app.Logger, redirectManager *app.RedirectManager) {
-	http.HandleFunc("/", handlers.GetRedirectMatch(logger, redirectManager))
-	log.Fatal(http.ListenAndServe(":8081", nil))
+func startGrpcServer(logger *app.Logger, redirectManager *app.RedirectManager) {
+	lis, err := net.Listen("tcp", ":8081")
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer()
+	// Register the server with the generated gRPC service
+	handler.NewServer(s, logger, redirectManager)
+	log.Printf("gRPC server listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }
