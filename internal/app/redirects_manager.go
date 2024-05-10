@@ -93,7 +93,7 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []api.Redirect, errC
 				rm.PopulateTrieWithRedirects()
 
 				rm.lastSyncTime = time.Now().UTC()
-				log.Println("Redirects synced at:", rm.lastSyncTime)
+				fmt.Println("Redirects synced at:", rm.lastSyncTime)
 				printRedirects(rm.redirects)
 			}
 		case err := <-errCh:
@@ -191,7 +191,6 @@ func initializeRedirectMapIds(fetchedRedirects []api.Redirect) map[string]bool {
 }
 
 func printRedirects(redirectMap map[string]*api.Redirect) {
-	log.Println("Redirects:")
 	for id, r := range redirectMap {
 		fmt.Printf("ID: %s, FromURL: %s, ToURL: %s, UpdatedAt: %s\n", id, r.FromURL, r.ToURL, r.UpdatedAt)
 	}

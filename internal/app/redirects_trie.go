@@ -1,12 +1,17 @@
 package app
 
 import (
+	"fmt"
+	"regexp"
 	"strings"
 )
 
 type TrieNode struct {
 	Children    map[string]*TrieNode
 	IsWildcard  bool
+	isStart     bool
+	isEnd       bool
+	Regex       string
 	RedirectURL string
 }
 
@@ -24,18 +29,22 @@ func (t *Trie) Insert(fromURL, toURL string) {
 	segments := strings.Split(fromURL, "/")
 
 	for _, segment := range segments {
-		// Check if the segment is a wildcard
 		isWildcard := strings.HasPrefix(segment, "(.*)")
-		if isWildcard {
-			segment = strings.TrimPrefix(segment, "(.*)")
+		isStart := strings.HasPrefix(segment, "^")
+		isEnd := strings.HasSuffix(segment, "$")
+
+		if isWildcard || isStart || isEnd {
+			node.Regex = segment
+		} else {
+			if _, ok := node.Children[segment]; !ok {
+				node.Children[segment] = &TrieNode{Children: make(map[string]*TrieNode)}
+			}
+			node = node.Children[segment]
 		}
 
-		if _, ok := node.Children[segment]; !ok {
-			node.Children[segment] = &TrieNode{Children: make(map[string]*TrieNode)}
-		}
-
-		node = node.Children[segment]
 		node.IsWildcard = isWildcard
+		node.isStart = isStart
+		node.isEnd = isEnd
 	}
 
 	node.RedirectURL = toURL
@@ -50,19 +59,32 @@ func (t *Trie) Match(requestURL string) (string, bool) {
 	for _, segment := range segments {
 		if child, ok := node.Children[segment]; ok {
 			node = child
-		} else if wildcardNode, wildcardExists := node.Children[""]; wildcardExists && wildcardNode.IsWildcard {
-			node = wildcardNode
-			// Capture the segment if it's a wildcard
-			capturedArgs = append(capturedArgs, segment)
 		} else {
-			return "", false
+			// Check if the node represents a regex pattern
+			if node.IsWildcard || node.isStart || node.isEnd {
+				// Compile the regex pattern
+				regex, err := regexp.Compile(node.Regex)
+				if err != nil {
+					return "", false
+				}
+
+				if regex.MatchString(segment) {
+					capturedArgs = append(capturedArgs, segment)
+				} else {
+					return "", false
+				}
+			} else {
+				return "", false
+			}
 		}
 	}
 
-	// Construct the final redirect URL
+	// Construct the final redirect URL using capturedArgs
 	redirectURL := node.RedirectURL
-	for _, capturedArg := range capturedArgs {
-		redirectURL = strings.Replace(redirectURL, "$1", capturedArg, 1)
+	for i, capturedArg := range capturedArgs {
+		// Replace $1, $2, ... in the redirect URL with capturedArgs[i]
+		placeholder := fmt.Sprintf("$%d", i+1)
+		redirectURL = strings.Replace(redirectURL, placeholder, capturedArg, -1)
 	}
 
 	return redirectURL, true
