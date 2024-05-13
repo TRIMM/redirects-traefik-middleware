@@ -1,6 +1,6 @@
 module github.com/TRIMM/redirects-traefik-middleware
 
-go 1.22.1
+go 1.22.3
 
 require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -10,7 +10,6 @@ require (
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
 	golang.org/x/oauth2 v0.20.0
 	google.golang.org/grpc v1.63.2
-	google.golang.org/protobuf v1.34.1
 )
 
 require (
@@ -18,4 +17,5 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240509183442-62759503f434 // indirect
+	google.golang.org/protobuf v1.34.1 // indirect
 )

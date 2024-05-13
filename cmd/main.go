@@ -45,7 +45,7 @@ func startGrpcServer(logger *app.Logger, redirectManager *app.RedirectManager) {
 	}
 
 	s := grpc.NewServer()
-	// Register the server with the generated gRPC service
+	// Register the server with the gRPC service
 	handler.NewServer(s, logger, redirectManager)
 	log.Printf("gRPC server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {

@@ -3,7 +3,7 @@ package redirects_traefik_middleware
 import (
 	"context"
 	"fmt"
-	pb "github.com/TRIMM/redirects-traefik-middleware/proto"
+	"github.com/TRIMM/redirects-traefik-middleware/pkg/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"log"
@@ -65,6 +65,28 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 }
 
+type RedirectServiceClient interface {
+	GetRedirectMatch(ctx context.Context, in *types.Request, opts ...grpc.CallOption) (*types.Response, error)
+}
+
+// Create a concrete implementation of RedirectServiceClient
+type redirectServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func (c *redirectServiceClient) GetRedirectMatch(ctx context.Context, in *types.Request, opts ...grpc.CallOption) (*types.Response, error) {
+	out := new(types.Response)
+	err := c.cc.Invoke(ctx, "/RedirectService/GetRedirectMatch", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func NewRedirectServiceClient(cc *grpc.ClientConn) RedirectServiceClient {
+	return &redirectServiceClient{cc: cc}
+}
+
 func getRedirectResponse(appURL, request string) (string, error) {
 	// Revise to grpc.WithTransportCredentials(credentials.NewTLS())
 	conn, err := grpc.Dial(appURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -73,17 +95,17 @@ func getRedirectResponse(appURL, request string) (string, error) {
 	}
 	defer conn.Close()
 
-	c := pb.NewRedirectServiceClient(conn)
+	client := NewRedirectServiceClient(conn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	r, err := c.GetRedirectMatch(ctx, &pb.Request{Url: request})
+	r, err := client.GetRedirectMatch(ctx, &types.Request{URL: request})
 	if err != nil {
 		return "", err
 	}
 
-	return r.GetRedirectUrl(), nil
+	return r.RedirectURL, nil
 }
 
 func getFullURL(req *http.Request) string {

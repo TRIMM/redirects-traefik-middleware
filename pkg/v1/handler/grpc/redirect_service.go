@@ -3,25 +3,32 @@ package grpc
 import (
 	"context"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
-	pb "github.com/TRIMM/redirects-traefik-middleware/proto"
+	"github.com/TRIMM/redirects-traefik-middleware/pkg/types"
 	"google.golang.org/grpc"
 	"log"
 )
 
+type RedirectService interface {
+	GetRedirectMatch(ctx context.Context, request *types.Request) (*types.Response, error)
+}
+
 type RedirectsServStruct struct {
-	pb.UnimplementedRedirectServiceServer
 	logger          *app.Logger
 	redirectManager *app.RedirectManager
 }
 
-func NewServer(grpcServer *grpc.Server, logger *app.Logger, redirectManager *app.RedirectManager) {
-	redirectsGrpc := &RedirectsServStruct{logger: logger, redirectManager: redirectManager}
-	pb.RegisterRedirectServiceServer(grpcServer, redirectsGrpc)
+func RegisterRedirectServiceServer(server *grpc.Server, redirectService *RedirectsServStruct) {
+	RegisterRedirectServiceServer(server, redirectService)
 }
 
-func (srv *RedirectsServStruct) GetRedirectMatch(ctx context.Context, in *pb.Request) (*pb.Response, error) {
+func NewServer(grpcServer *grpc.Server, logger *app.Logger, redirectManager *app.RedirectManager) {
+	redirectsGrpc := &RedirectsServStruct{logger: logger, redirectManager: redirectManager}
+	RegisterRedirectServiceServer(grpcServer, redirectsGrpc)
+}
+
+func (srv *RedirectsServStruct) GetRedirectMatch(ctx context.Context, in *types.Request) (*types.Response, error) {
 	// Logging the incoming requests
-	request := in.GetUrl()
+	request := in.URL
 	if err := srv.logger.LogRequest(request); err != nil {
 		log.Println("Failed to log request to file: ", err)
 	}
@@ -32,5 +39,5 @@ func (srv *RedirectsServStruct) GetRedirectMatch(ctx context.Context, in *pb.Req
 		redirectURL = "@empty"
 	}
 
-	return &pb.Response{RedirectUrl: redirectURL}, nil
+	return &types.Response{RedirectURL: redirectURL}, nil
 }
