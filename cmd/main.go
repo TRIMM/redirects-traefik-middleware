@@ -7,16 +7,18 @@ import (
 )
 
 func main() {
-	trie := app.NewTrie()
+	idx := app.NewIndexedRedirects()
 
-	// Insert redirect rules
-	trie.Insert("^/$", "/index.html")
-	trie.Insert("^/articles/([0-9]+)$", "/posts/$1")
-	trie.Insert("^/users/([0-9]+)$", "/profile/$1")
+	// IndexRule redirect rules
+	idx.IndexRule("^/$", "/index.html")
+	idx.IndexRule("^/articles/([0-9]+)$", "/posts/$1")
+	idx.IndexRule("^/jobs/(.*)$", "/vacancies/$1")
+	idx.IndexRule("^/users/([0-9]+)$", "/profile/$1")
 
 	// Test matching
 	testCases := []string{
 		"/",
+		"/jobs/software-engineer-hengelo",
 		"/articles/123",
 		"/articles/abc",
 		"/users/123",
@@ -27,7 +29,7 @@ func main() {
 	}
 
 	for _, testCase := range testCases {
-		redirectURL, matched := trie.Match(testCase)
+		redirectURL, matched := idx.Match(testCase)
 		if matched {
 			fmt.Printf("Redirecting %s to %s\n", testCase, redirectURL)
 		} else {

@@ -23,7 +23,7 @@ func GetRedirectMatch(logger *app.Logger, redirectManager *app.RedirectManager) 
 		}
 
 		// Matching against the defined redirects
-		redirectURL, ok := redirectManager.Trie.Match(request)
+		redirectURL, ok := redirectManager.IndexedRedirects.Match(request)
 		if !ok {
 			redirectURL = "@empty"
 		}
