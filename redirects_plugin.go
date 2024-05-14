@@ -24,7 +24,7 @@ type RedirectsPlugin struct {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	log.Println("Redirects Traefik Middleware v0.1.7")
+	log.Println("Redirects Traefik Middleware v0.1.8")
 
 	if len(config.RedirectsAppURL) == 0 {
 		return nil, fmt.Errorf("RedirectsPlugin 'redirectsURL' cannot be empty")
