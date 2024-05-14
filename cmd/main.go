@@ -20,10 +20,11 @@ func main() {
 	logger := app.NewLogger(config.logFilePath, graphqlClient)
 	logger.SendLogsWeekly()
 
+	// Add the internal redirects data
 	redirectManager := app.NewRedirectManager(dbConnect(config.dbFilePath), graphqlClient)
-	redirectManager.PopulateMapWithDataFromDB()
+	redirectManager.PopulateMapsWithDataFromDB()
 
-	//Create channels for fetching redirects periodically
+	// Create channels for fetching redirects periodically
 	redirectsCh := make(chan []api.Redirect)
 	errCh := make(chan error)
 

@@ -32,15 +32,7 @@ func (idx *IndexedRedirects) IndexRule(pattern, target string) {
 		pattern: regexp.MustCompile(pattern),
 		target:  target,
 	}
-
-	// Extract the prefix from the pattern
-	prefix := ""
-	if pattern != "^/$" {
-		patternParts := strings.Split(pattern, "/")
-		if len(patternParts) > 1 {
-			prefix = patternParts[1]
-		}
-	}
+	prefix := getPrefix(pattern)
 
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
