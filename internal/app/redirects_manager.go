@@ -104,11 +104,11 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []api.Redirect, errC
 func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]api.Redirect) {
 	var fetchedRedirectsIDs = initializeRedirectMapIds(*fetchedRedirects)
 
-	for id := range rm.redirects {
+	for id, r := range rm.redirects {
 		if !fetchedRedirectsIDs[id] {
 			delete(rm.redirects, id)
 			// Delete from IndexedRedirects as well
-			//rm.IndexedRedirects.Delete(redirect.FromURL)
+			rm.IndexedRedirects.Delete(r.FromURL)
 
 			// Delete from the database
 			err := rm.DeleteOldRedirect(id)
@@ -130,7 +130,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 				*r = fr
 
 				// Update IndexedRedirects as well
-				//rm.IndexedRedirects.Update(r.FromURL, r.ToURL)
+				rm.IndexedRedirects.Update(r.FromURL, r.ToURL)
 				log.Println("Redirect updated:", fr.Id)
 
 				// Update the database record

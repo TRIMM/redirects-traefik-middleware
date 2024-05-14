@@ -1,71 +1,46 @@
 package main
 
 import (
-	"fmt"
+	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
+	"github.com/TRIMM/redirects-traefik-middleware/pkg/handlers"
 	"log"
+	"net/http"
 )
 
 func main() {
-	idx := app.NewIndexedRedirects()
+	log.Println("Starting redirects-traefik-middleware")
 
-	// IndexRule redirect rules
-	idx.IndexRule("^/$", "/index.html")
-	idx.IndexRule("^/articles/([0-9]+)$", "/posts/$1")
-	idx.IndexRule("^/jobs/(.*)$", "/vacancies/$1")
-	idx.IndexRule("^/users/([0-9]+)$", "/profile/$1")
+	// Create needed configuration for the authentication
+	config := NewAppConfig()
+	authData := api.NewAuthData(config.clientName, config.clientSecret, config.serverURL, config.jwtSecret)
+	graphqlClient := api.NewGraphQLClient(authData)
 
-	// Test matching
-	testCases := []string{
-		"/",
-		"/jobs/software-engineer-hengelo",
-		"/articles/123",
-		"/articles/abc",
-		"/users/123",
-		"/users/abc",
-		"/about-us",
-		"/home/page/123",
-		"/articles/123/abc",
-	}
+	// Send logs of incoming requests to the Central API once a week
+	logger := app.NewLogger(config.logFilePath, graphqlClient)
+	logger.SendLogsWeekly()
 
-	for _, testCase := range testCases {
-		redirectURL, matched := idx.Match(testCase)
-		if matched {
-			fmt.Printf("Redirecting %s to %s\n", testCase, redirectURL)
-		} else {
-			log.Println("No matching rule found for: \n", testCase)
-		}
-	}
-	//log.Println("Starting redirects-traefik-middleware")
-	//config := NewAppConfig()
-	//
-	//authData := api.NewAuthData(config.clientName, config.clientSecret, config.serverURL, config.jwtSecret)
-	//graphqlClient := api.NewGraphQLClient(authData)
-	//
-	//logger := app.NewLogger(config.logFilePath, graphqlClient)
-	//logger.SendLogsWeekly()
-	//
-	//redirectManager := app.NewRedirectManager(dbConnect(config.dbFilePath), graphqlClient)
-	//redirectManager.PopulateMapWithDataFromDB()
-	//redirectManager.PopulateTrieWithRedirects()
-	//
-	////Create channels for fetching redirects periodically
-	//redirectsCh := make(chan []api.Redirect)
-	//errCh := make(chan error)
-	//
-	//go func() {
-	//	defer close(redirectsCh)
-	//	defer close(errCh)
-	//
-	//	redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
-	//}()
-	//go redirectManager.SyncRedirects(redirectsCh, errCh)
-	//
-	//handleRequests(logger, redirectManager)
+	redirectManager := app.NewRedirectManager(dbConnect(config.dbFilePath), graphqlClient)
+	redirectManager.PopulateMapWithDataFromDB()
+
+	//Create channels for fetching redirects periodically
+	redirectsCh := make(chan []api.Redirect)
+	errCh := make(chan error)
+
+	// Start the go-routine for fetching & syncing the redirects periodically
+	go func() {
+		defer close(redirectsCh)
+		defer close(errCh)
+
+		redirectManager.FetchRedirectsOverChannel(redirectsCh, errCh)
+	}()
+	go redirectManager.SyncRedirects(redirectsCh, errCh)
+
+	// Register the server for handling requests
+	NewHTTPServer(logger, redirectManager)
 }
 
-// Register the handlers
-//func handleRequests(logger *app.Logger, redirectManager *app.RedirectManager) {
-//	http.HandleFunc("/", handlers.GetRedirectMatch(logger, redirectManager))
-//	log.Fatal(http.ListenAndServe(":8081", nil))
-//}
+func NewHTTPServer(logger *app.Logger, redirectManager *app.RedirectManager) {
+	http.HandleFunc("/", handlers.GetRedirectMatch(logger, redirectManager))
+	log.Fatal(http.ListenAndServe(":8081", nil))
+}
