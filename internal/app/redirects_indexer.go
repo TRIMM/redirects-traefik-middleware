@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 type Rule struct {
@@ -12,14 +13,13 @@ type Rule struct {
 }
 
 type IndexedRedirects struct {
-	LengthMap map[int][]*Rule
-	PrefixMap map[string][]*Rule
+	LengthMap map[int]map[string][]*Rule
+	mu        sync.RWMutex
 }
 
 func NewIndexedRedirects() *IndexedRedirects {
 	return &IndexedRedirects{
-		LengthMap: make(map[int][]*Rule),
-		PrefixMap: make(map[string][]*Rule),
+		LengthMap: make(map[int]map[string][]*Rule),
 	}
 }
 
@@ -28,35 +28,46 @@ func (idx *IndexedRedirects) IndexRule(pattern, target string) {
 		pattern: regexp.MustCompile(pattern),
 		target:  target,
 	}
-	urlLen := len(strings.Split(rule.pattern.String(), "/"))
-	idx.LengthMap[urlLen] = append(idx.LengthMap[urlLen], rule)
 
-	prefix := getPrefix(rule)
-	idx.PrefixMap[prefix] = append(idx.PrefixMap[prefix], rule)
-}
-
-func getPrefix(rule *Rule) string {
-	// Implement logic to extract prefix
-	parts := strings.Split(rule.pattern.String(), "/")
-	if len(parts) > 1 {
-		return parts[1] // returns the first segment as prefix
+	// Extract the prefix from the pattern
+	prefix := ""
+	if pattern != "^/$" {
+		patternParts := strings.Split(pattern, "/")
+		if len(patternParts) > 1 {
+			prefix = patternParts[1]
+		}
 	}
-	return ""
+
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+
+	length := len(strings.Split(pattern, "/"))
+	if _, ok := idx.LengthMap[length]; !ok {
+		idx.LengthMap[length] = make(map[string][]*Rule)
+	}
+	idx.LengthMap[length][prefix] = append(idx.LengthMap[length][prefix], rule)
 }
 
 func (idx *IndexedRedirects) Match(url string) (string, bool) {
 	urlParts := strings.Split(url, "/")
-	urlLen := len(urlParts)
-	possibleRules := idx.LengthMap[urlLen]
+	length := len(urlParts)
+	prefix := urlParts[1]
 
-	for _, rule := range possibleRules {
-		if matches := rule.pattern.FindStringSubmatch(url); matches != nil {
-			redirectURL := rule.target
-			for i := 1; i < len(matches); i++ {
-				placeholder := fmt.Sprintf("$%d", i)
-				redirectURL = strings.ReplaceAll(redirectURL, placeholder, matches[i])
+	idx.mu.RLock()
+	defer idx.mu.RUnlock()
+
+	if prefixes, ok := idx.LengthMap[length]; ok {
+		if rules, ok := prefixes[prefix]; ok {
+			for _, rule := range rules {
+				if matches := rule.pattern.FindStringSubmatch(url); matches != nil {
+					redirectURL := rule.target
+					for i := 1; i < len(matches); i++ {
+						placeholder := fmt.Sprintf("$%d", i)
+						redirectURL = strings.ReplaceAll(redirectURL, placeholder, matches[i])
+					}
+					return redirectURL, true
+				}
 			}
-			return redirectURL, true
 		}
 	}
 
