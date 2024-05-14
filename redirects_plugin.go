@@ -3,13 +3,10 @@ package redirects_traefik_middleware
 import (
 	"context"
 	"fmt"
-	pb "github.com/TRIMM/redirects-traefik-middleware/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"io"
 	"log"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type Config struct {
@@ -49,9 +46,9 @@ If a match is found, it redirects accordingly
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	var request = getFullURL(req)
 
-	var responseURL, err = getRedirectResponse(rp.redirectsAppURL, request)
+	var responseURL, err = getRedirectMatch(rp.redirectsAppURL, request)
 	if err != nil {
-		log.Println("Failed to connect to the gRPC server: ", err)
+		log.Println("Error sending HTTP request:", err)
 		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -65,25 +62,33 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 }
 
-func getRedirectResponse(appURL, request string) (string, error) {
-	// Revise to grpc.WithTransportCredentials(credentials.NewTLS())
-	conn, err := grpc.Dial(appURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-
-	c := pb.NewRedirectServiceClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-
-	r, err := c.GetRedirectMatch(ctx, &pb.Request{Url: request})
+func getRedirectMatch(appURL, request string) (string, error) {
+	var client = &http.Client{}
+	req, err := http.NewRequest("GET", appURL, strings.NewReader(request))
 	if err != nil {
 		return "", err
 	}
 
-	return r.GetRedirectUrl(), nil
+	req.Header.Set("Content-Type", "text/plain")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		err := res.Body.Close()
+		if err != nil {
+			log.Println("Error closing response body: ", err)
+		}
+	}()
+
+	response, err := io.ReadAll(res.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(response), nil
 }
 
 func getFullURL(req *http.Request) string {

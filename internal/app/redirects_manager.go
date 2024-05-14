@@ -10,20 +10,20 @@ import (
 )
 
 type RedirectManager struct {
-	db           *sql.DB
-	gqlClient    *api.GraphQLClient
-	redirects    map[string]*api.Redirect
-	Trie         *Trie
-	lastSyncTime time.Time
+	db               *sql.DB
+	gqlClient        *api.GraphQLClient
+	redirects        map[string]*api.Redirect
+	IndexedRedirects *IndexedRedirects
+	lastSyncTime     time.Time
 }
 
 func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient) *RedirectManager {
 	return &RedirectManager{
-		db:           db,
-		gqlClient:    gqlClient,
-		redirects:    make(map[string]*api.Redirect),
-		Trie:         NewTrie(),
-		lastSyncTime: time.Time{},
+		db:               db,
+		gqlClient:        gqlClient,
+		redirects:        make(map[string]*api.Redirect),
+		IndexedRedirects: NewIndexedRedirects(),
+		lastSyncTime:     time.Time{},
 	}
 }
 
@@ -90,7 +90,6 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []api.Redirect, errC
 
 				rm.HandleOldRedirectsDeletion(&fetchedRedirects)
 				rm.HandleNewOrUpdatedRedirects(&fetchedRedirects)
-				rm.PopulateTrieWithRedirects()
 
 				rm.lastSyncTime = time.Now().UTC()
 				fmt.Println("Redirects synced at:", rm.lastSyncTime)
@@ -105,9 +104,12 @@ func (rm *RedirectManager) SyncRedirects(redirectsCh <-chan []api.Redirect, errC
 func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]api.Redirect) {
 	var fetchedRedirectsIDs = initializeRedirectMapIds(*fetchedRedirects)
 
-	for id := range rm.redirects {
+	for id, r := range rm.redirects {
 		if !fetchedRedirectsIDs[id] {
 			delete(rm.redirects, id)
+			// Delete from IndexedRedirects as well
+			rm.IndexedRedirects.Delete(r.FromURL)
+
 			// Delete from the database
 			err := rm.DeleteOldRedirect(id)
 			if err != nil {
@@ -126,7 +128,11 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 			// Update existing redirect
 			if fr.UpdatedAt.After(rm.lastSyncTime) {
 				*r = fr
+
+				// Update IndexedRedirects as well
+				rm.IndexedRedirects.Update(r.FromURL, r.ToURL)
 				log.Println("Redirect updated:", fr.Id)
+
 				// Update the database record
 				err := rm.UpsertRedirect(fr)
 				if err != nil {
@@ -136,6 +142,8 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 		} else {
 			// Add new redirect
 			rm.redirects[fr.Id] = &fr
+			// Add to IndexedRedirects
+			rm.IndexedRedirects.IndexRule(fr.FromURL, fr.ToURL)
 			log.Println("Redirect added:", fr.Id)
 
 			// Store the database record
@@ -144,13 +152,6 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 				log.Println("Error storing new redirect in the database:", err)
 			}
 		}
-	}
-}
-
-func (rm *RedirectManager) PopulateTrieWithRedirects() {
-	rm.Trie.Clear()
-	for _, r := range rm.redirects {
-		rm.Trie.Insert(r.FromURL, r.ToURL)
 	}
 }
 
