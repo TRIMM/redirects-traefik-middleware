@@ -3,7 +3,7 @@ package main
 import (
 	api "github.com/TRIMM/redirects-traefik-middleware/api/v1"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
-	"github.com/TRIMM/redirects-traefik-middleware/pkg/handlers"
+	"github.com/TRIMM/redirects-traefik-middleware/pkg/v1/handlers"
 	"log"
 	"net/http"
 )

@@ -7,4 +7,4 @@ import: github.com/TRIMM/redirects-traefik-middleware
 summary: "Redirect based on the entries received from the Central API."
 
 testData:
-  redirectsAppURL: "redirects-app:8081"
+  redirectsAppURL: "http://redirects-app:8081"
