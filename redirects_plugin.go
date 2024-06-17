@@ -59,7 +59,7 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		http.Redirect(rw, req, absolutePath, http.StatusFound)
 	} else {
 		log.Println("Redirect does not exist: " + relativeURL + "-->" + responseURL)
-		http.NotFound(rw, req)
+		rp.next.ServeHTTP(rw, req)
 	}
 }
 
