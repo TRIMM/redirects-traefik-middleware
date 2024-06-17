@@ -30,7 +30,7 @@ func NewRedirectManager(db *sql.DB, gqlClient *api.GraphQLClient) *RedirectManag
 func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Redirect, errCh chan<- error) {
 	for {
 		select {
-		case <-time.After(1 * time.Minute):
+		case <-time.After(10 * time.Hour):
 			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery()
 			if err != nil {
 				errCh <- err

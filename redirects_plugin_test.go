@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestServeHTTP_Redirection(t *testing.T) {
+func TestServeHTTP_Match_Redirect(t *testing.T) {
 	nextHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	})
@@ -45,7 +45,7 @@ func TestServeHTTP_Redirection(t *testing.T) {
 	}
 }
 
-func TestRedirectsPlugin_NoMatch(t *testing.T) {
+func TestServeHTTP_NoMatch(t *testing.T) {
 	nextHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	})
