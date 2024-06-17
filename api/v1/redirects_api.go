@@ -51,7 +51,7 @@ func (gql *GraphQLClient) ExecuteRedirectsQuery() ([]Redirect, error) {
 
 func (gql *GraphQLClient) fetchRedirectsPage(cursor string) ([]Redirect, PageInfo, error) {
 	var query struct {
-		Redirects RedirectConnection `graphql:"redirects(hostId: $hostId, first: 2, after: $cursor)"`
+		Redirects RedirectConnection `graphql:"redirects(hostId: $hostId, first: 100, after: $cursor)"`
 	}
 
 	vars := map[string]interface{}{
