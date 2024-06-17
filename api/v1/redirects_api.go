@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/shurcooL/graphql"
 	"log"
+	"os"
 	"time"
 )
 
@@ -17,7 +18,7 @@ type Redirect struct {
 
 func (gql *GraphQLClient) ExecuteRedirectsQuery() ([]Redirect, error) {
 	var redirectsQuery struct {
-		Redirects []Redirect `graphql:"redirects(clientId: $clientId)"`
+		Redirects []Redirect `graphql:"redirects(hostId: $hostId)"`
 	}
 
 	client := gql.GetClient()
@@ -25,7 +26,7 @@ func (gql *GraphQLClient) ExecuteRedirectsQuery() ([]Redirect, error) {
 		return nil, fmt.Errorf("GraphQL client not initialized")
 	}
 	vars := map[string]interface{}{
-		"clientId": graphql.String(gql.TokenData.ClientId),
+		"hostId": graphql.String(os.Getenv("HOST_ID")),
 	}
 
 	err := client.Query(context.Background(), &redirectsQuery, vars)

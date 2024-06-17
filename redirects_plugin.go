@@ -44,9 +44,9 @@ ServeHTTP intercepts a request and matches it against the existing rules
 If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var request = getFullURL(req)
+	var relativeURL = req.URL.Path
 
-	var responseURL, err = getRedirectMatch(rp.redirectsAppURL, request)
+	var responseURL, err = getRedirectMatch(rp.redirectsAppURL, relativeURL)
 	if err != nil {
 		log.Println("Error sending HTTP request:", err)
 		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
@@ -54,10 +54,11 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	if responseURL != "@empty" {
-		log.Println("Redirect exists: " + request + "-->" + responseURL)
-		http.Redirect(rw, req, responseURL, http.StatusFound)
+		log.Println("Redirect exists: " + relativeURL + "-->" + responseURL)
+		absolutePath := getFullURL(req, responseURL)
+		http.Redirect(rw, req, absolutePath, http.StatusFound)
 	} else {
-		log.Println("Redirect does not exist: " + request + "-->" + responseURL)
+		log.Println("Redirect does not exist: " + relativeURL + "-->" + responseURL)
 		http.NotFound(rw, req)
 	}
 }
@@ -91,7 +92,7 @@ func getRedirectMatch(appURL, request string) (string, error) {
 	return string(response), nil
 }
 
-func getFullURL(req *http.Request) string {
+func getFullURL(req *http.Request, responseURL string) string {
 	var proto = "https://"
 	if req.TLS == nil {
 		proto = "http://"
@@ -102,6 +103,6 @@ func getFullURL(req *http.Request) string {
 		host = req.Host
 	}
 
-	var answer = proto + host + req.URL.Path
+	var answer = proto + host + responseURL
 	return strings.ToLower(answer)
 }
