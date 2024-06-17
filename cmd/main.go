@@ -16,15 +16,12 @@ func main() {
 	authData := api.NewAuthData(config.clientName, config.clientSecret, config.serverURL, config.jwtSecret)
 	graphqlClient := api.NewGraphQLClient(authData)
 
-	// Send logs of incoming requests to the Central API once a week
 	logger := app.NewLogger(config.logFilePath, graphqlClient)
 	logger.SendLogsWeekly()
 
-	// Add the internal redirects data
 	redirectManager := app.NewRedirectManager(dbConnect(config.dbFilePath), graphqlClient)
 	redirectManager.PopulateMapsWithDataFromDB()
 
-	// Create channels for fetching redirects periodically
 	redirectsCh := make(chan []api.Redirect)
 	errCh := make(chan error)
 
@@ -37,7 +34,6 @@ func main() {
 	}()
 	go redirectManager.SyncRedirects(redirectsCh, errCh)
 
-	// Register the server for handling requests
 	NewHTTPServer(logger, redirectManager)
 }
 

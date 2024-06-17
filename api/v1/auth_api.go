@@ -21,8 +21,7 @@ type AuthData struct {
 }
 
 type TokenData struct {
-	Token    string
-	ClientId string
+	Token string
 }
 
 type GraphQLClient struct {
@@ -71,7 +70,6 @@ func (gql *GraphQLClient) getNewAccessToken() error {
 		return err
 	}
 	gql.updateGraphQLClient(token)
-	gql.setClientIdFromClaims(token)
 	gql.TokenData.Token = token
 
 	return nil
@@ -123,22 +121,6 @@ func (gql *GraphQLClient) updateGraphQLClient(token string) {
 	)
 	httpClient := oauth2.NewClient(context.Background(), src)
 	gql.client = graphql.NewClient(fmt.Sprintf("%s/graphql", gql.authData.ServerURL), httpClient)
-}
-
-func (gql *GraphQLClient) setClientIdFromClaims(tokenString string) {
-	claims, err := gql.parseToken(tokenString)
-	if err != nil {
-		log.Println("Error parsing token:", err)
-		return
-	}
-
-	clientId, ok := claims["sub"].(string)
-	if !ok {
-		log.Println("Client ID not found in token claims")
-		return
-	}
-
-	gql.TokenData.ClientId = clientId
 }
 
 func (gql *GraphQLClient) isTokenExpired(tokenString string) bool {

@@ -128,28 +128,22 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 	for _, fr := range *fetchedRedirects {
 		// Check if redirect exists in map
 		if r, ok := rm.redirects[fr.Id]; ok {
-			// Update existing redirect
 			if fr.UpdatedAt.After(rm.lastSyncTime) {
 				*r = fr
 
-				// Update IndexedRedirects as well
 				rm.IndexedRedirects.Update(r.FromURL, r.ToURL)
 				log.Println("Redirect updated:", fr.Id)
 
-				// Update the database record
 				err := rm.UpsertRedirect(fr)
 				if err != nil {
 					log.Println("Error updating redirect in the database:", err)
 				}
 			}
 		} else {
-			// Add new redirect
 			rm.redirects[fr.Id] = &fr
-			// Add to IndexedRedirects
 			rm.IndexedRedirects.IndexRule(fr.FromURL, fr.ToURL)
 			log.Println("Redirect added:", fr.Id)
 
-			// Store the database record
 			err := rm.UpsertRedirect(fr)
 			if err != nil {
 				log.Println("Error storing new redirect in the database:", err)
