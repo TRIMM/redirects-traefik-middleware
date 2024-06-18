@@ -47,6 +47,7 @@ func (rm *RedirectManager) PopulateMapsWithDataFromDB() {
 		CREATE TABLE IF NOT EXISTS redirects (
 		    id TEXT PRIMARY KEY,
 		    fromURL TEXT,
+		    fromDomain TEXT,
 		    toURL TEXT,
 		    updatedAt date
 		)
@@ -70,14 +71,14 @@ func (rm *RedirectManager) PopulateMapsWithDataFromDB() {
 
 	for rows.Next() {
 		r := api.Redirect{}
-		err = rows.Scan(&r.Id, &r.FromURL, &r.ToURL, &r.UpdatedAt)
+		err = rows.Scan(&r.Id, &r.FromURL, &r.FromDomain, &r.ToURL, &r.UpdatedAt)
 		if err != nil {
 			log.Println("Error scanning the SQL rows:", err)
 		}
 		// Add to redirects map
 		rm.redirects[r.Id] = &r
 		// Add to IndexedRedirects
-		rm.IndexedRedirects.IndexRule(r.FromURL, r.ToURL)
+		rm.IndexedRedirects.IndexRule(r.FromURL, r.FromDomain, r.ToURL)
 	}
 }
 
@@ -111,7 +112,7 @@ func (rm *RedirectManager) HandleOldRedirectsDeletion(fetchedRedirects *[]api.Re
 		if !fetchedRedirectsIDs[id] {
 			delete(rm.redirects, id)
 			// Delete from IndexedRedirects as well
-			rm.IndexedRedirects.Delete(r.FromURL)
+			rm.IndexedRedirects.Delete(r.FromURL, r.FromDomain)
 
 			// Delete from the database
 			err := rm.DeleteOldRedirect(id)
@@ -131,7 +132,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 			if fr.UpdatedAt.After(rm.lastSyncTime) {
 				*r = fr
 
-				rm.IndexedRedirects.Update(r.FromURL, r.ToURL)
+				rm.IndexedRedirects.Update(r.FromURL, r.FromDomain, r.ToURL)
 				log.Println("Redirect updated:", fr.Id)
 
 				err := rm.UpsertRedirect(fr)
@@ -141,7 +142,7 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 			}
 		} else {
 			rm.redirects[fr.Id] = &fr
-			rm.IndexedRedirects.IndexRule(fr.FromURL, fr.ToURL)
+			rm.IndexedRedirects.IndexRule(fr.FromURL, fr.FromDomain, fr.ToURL)
 			log.Println("Redirect added:", fr.Id)
 
 			err := rm.UpsertRedirect(fr)
@@ -154,13 +155,13 @@ func (rm *RedirectManager) HandleNewOrUpdatedRedirects(fetchedRedirects *[]api.R
 
 func (rm *RedirectManager) UpsertRedirect(r api.Redirect) error {
 	stmt := `
-			INSERT INTO redirects (id, fromURL, toURL, updatedAt)
-			VALUES (?, ?, ?, ?)
+			INSERT INTO redirects (id, fromURL, fromDomain, toURL, updatedAt)
+			VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE
-			SET fromURL = EXCLUDED.fromURL, toURL = EXCLUDED.toURL, updatedAt = EXCLUDED.updatedAt;
+			SET fromURL = EXCLUDED.fromURL, fromDomain = EXCLUDED.fromDomain, toURL = EXCLUDED.toURL, updatedAt = EXCLUDED.updatedAt;
 			`
 
-	_, err := rm.db.Exec(stmt, r.Id, r.FromURL, r.ToURL, r.UpdatedAt, r.FromURL, r.ToURL, r.UpdatedAt)
+	_, err := rm.db.Exec(stmt, r.Id, r.FromURL, r.FromDomain, r.ToURL, r.UpdatedAt, r.FromURL, r.ToURL, r.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -190,7 +191,7 @@ func initializeRedirectMapIds(fetchedRedirects []api.Redirect) map[string]bool {
 
 func printRedirects(redirectMap map[string]*api.Redirect) {
 	for id, r := range redirectMap {
-		fmt.Printf("ID: %s, FromURL: %s, ToURL: %s, UpdatedAt: %s\n", id, r.FromURL, r.ToURL, r.UpdatedAt)
+		fmt.Printf("ID: %s, FromURL: %s, FromDomain: %s, ToURL: %s, UpdatedAt: %s\n", id, r.FromURL, r.FromDomain, r.ToURL, r.UpdatedAt)
 	}
 	fmt.Printf("\n")
 }

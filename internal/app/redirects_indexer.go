@@ -8,62 +8,79 @@ import (
 )
 
 type Rule struct {
-	pattern *regexp.Regexp
-	target  string
+	pattern    *regexp.Regexp
+	target     string
+	fromDomain *regexp.Regexp
+	isDomain   bool
 }
 
 type IndexedRedirects struct {
-	LengthMap map[int]map[string][]*Rule
-	mu        sync.RWMutex
+	LengthMap   map[int]map[string][]*Rule
+	DomainRules []*Rule
+	mu          sync.RWMutex
 }
 
 func NewIndexedRedirects() *IndexedRedirects {
 	return &IndexedRedirects{
-		LengthMap: make(map[int]map[string][]*Rule),
+		LengthMap:   make(map[int]map[string][]*Rule),
+		DomainRules: []*Rule{},
 	}
 }
 
-/*
-IndexRule creates an index of segments length
-It narrows the indexing to pattern prefix for a quick lookup
-*/
-func (idx *IndexedRedirects) IndexRule(pattern, target string) {
+func (idx *IndexedRedirects) IndexRule(pattern, fromDomain, target string) {
 	rule := &Rule{
-		pattern: regexp.MustCompile(pattern),
-		target:  target,
+		pattern:    regexp.MustCompile(pattern),
+		target:     target,
+		fromDomain: regexp.MustCompile(fromDomain),
+		isDomain:   fromDomain != "",
 	}
-	prefix := getPrefix(pattern)
 
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
 
-	length := len(strings.Split(pattern, "/"))
-	if _, ok := idx.LengthMap[length]; !ok {
-		idx.LengthMap[length] = make(map[string][]*Rule)
+	if rule.isDomain {
+		idx.DomainRules = append(idx.DomainRules, rule)
+	} else {
+		length := len(strings.Split(pattern, "/"))
+		if _, ok := idx.LengthMap[length]; !ok {
+			idx.LengthMap[length] = make(map[string][]*Rule)
+		}
+		prefix := getPrefix(pattern)
+		idx.LengthMap[length][prefix] = append(idx.LengthMap[length][prefix], rule)
 	}
-	idx.LengthMap[length][prefix] = append(idx.LengthMap[length][prefix], rule)
 }
 
 // Match matches the incoming requests against the redirect rules
 func (idx *IndexedRedirects) Match(url string) (string, bool) {
-	urlParts := strings.Split(url, "/")
-	length := len(urlParts)
-	prefix := urlParts[1]
+	isFullURL := strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")
 
 	idx.mu.RLock()
 	defer idx.mu.RUnlock()
 
-	// Checks for the length index and provides prefixes
+	if isFullURL {
+		for _, rule := range idx.DomainRules {
+			if matches := rule.fromDomain.FindStringSubmatch(url); matches != nil {
+				redirectURL := rule.target
+				for i := 1; i < len(matches); i++ {
+					placeholder := fmt.Sprintf("$%d", i)
+					redirectURL = strings.ReplaceAll(redirectURL, placeholder, matches[i])
+				}
+				return redirectURL, true
+			}
+		}
+	}
+
+	urlParts := strings.Split(url, "/")
+	length := len(urlParts)
+	prefix := urlParts[1]
+
 	if prefixes, ok := idx.LengthMap[length]; ok {
-		// Checks for the rules under the prefixes that match the url prefix
 		if rules, ok := prefixes[prefix]; ok {
 			for _, rule := range rules {
-				// Matches the url against the pattern
 				if matches := rule.pattern.FindStringSubmatch(url); matches != nil {
 					redirectURL := rule.target
 					for i := 1; i < len(matches); i++ {
 						placeholder := fmt.Sprintf("$%d", i)
-						// Construct the redirectURL by filling the captured groups
 						redirectURL = strings.ReplaceAll(redirectURL, placeholder, matches[i])
 					}
 					return redirectURL, true
@@ -75,41 +92,62 @@ func (idx *IndexedRedirects) Match(url string) (string, bool) {
 	return "", false
 }
 
-func (idx *IndexedRedirects) Update(pattern, target string) {
+func (idx *IndexedRedirects) Update(pattern, fromDomain, target string) {
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
 
-	prefix := getPrefix(pattern)
-	length := len(strings.Split(pattern, "/"))
-	rulesSlice := idx.LengthMap[length][prefix]
+	if fromDomain != "" {
+		for _, rule := range idx.DomainRules {
+			if rule.fromDomain.String() == fromDomain {
+				rule.target = target
+				break
+			}
+		}
+	} else {
+		prefix := getPrefix(pattern)
+		length := len(strings.Split(pattern, "/"))
+		rulesSlice := idx.LengthMap[length][prefix]
 
-	for _, rule := range rulesSlice {
-		if rule.pattern.String() == pattern {
-			rule.target = target
-			break
+		for _, rule := range rulesSlice {
+			if rule.pattern.String() == pattern {
+				rule.target = target
+				break
+			}
 		}
 	}
 }
 
-func (idx *IndexedRedirects) Delete(pattern string) {
+func (idx *IndexedRedirects) Delete(pattern, fromDomain string) {
 	idx.mu.Lock()
 	defer idx.mu.Unlock()
 
-	prefix := getPrefix(pattern)
-	length := len(strings.Split(pattern, "/"))
-	rulesSlice := idx.LengthMap[length][prefix]
-
-	index := -1
-	for i, rule := range rulesSlice {
-		if rule.pattern.String() == pattern {
-			index = i
-			break
+	if fromDomain != "" {
+		index := -1
+		for i, rule := range idx.DomainRules {
+			if rule.fromDomain.String() == fromDomain {
+				index = i
+				break
+			}
 		}
-	}
+		if index != -1 {
+			idx.DomainRules = append(idx.DomainRules[:index], idx.DomainRules[index+1:]...)
+		}
+	} else {
+		prefix := getPrefix(pattern)
+		length := len(strings.Split(pattern, "/"))
+		rulesSlice := idx.LengthMap[length][prefix]
 
-	// If the rule is found, remove it from the slice
-	if index != -1 {
-		idx.LengthMap[length][prefix] = append(rulesSlice[:index], rulesSlice[index+1:]...)
+		index := -1
+		for i, rule := range rulesSlice {
+			if rule.pattern.String() == pattern {
+				index = i
+				break
+			}
+		}
+
+		if index != -1 {
+			idx.LengthMap[length][prefix] = append(rulesSlice[:index], rulesSlice[index+1:]...)
+		}
 	}
 }
 

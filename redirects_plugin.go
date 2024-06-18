@@ -44,37 +44,47 @@ ServeHTTP intercepts a request and matches it against the existing rules
 If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	var fullURL = getFullURL(req)
 	var relativeURL = req.URL.Path
 
-	var responseURL, err = getRedirectMatch(rp.redirectsAppURL, relativeURL)
+	var responseURL string
+	var isMatch bool
+	var err error
+
+	responseURL, isMatch, err = getRedirectMatch(rp.redirectsAppURL, fullURL)
 	if err != nil {
 		log.Println("Error sending HTTP request:", err)
 		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+	if !isMatch {
+		responseURL, isMatch, err = getRedirectMatch(rp.redirectsAppURL, relativeURL)
+	}
 
-	if responseURL != "@empty" {
-		log.Println("Redirect exists: " + relativeURL + "-->" + responseURL)
-		absolutePath := getFullURL(req, responseURL)
-		http.Redirect(rw, req, absolutePath, http.StatusFound)
+	if isMatch {
+		log.Println("Redirect exists: " + fullURL + "-->" + responseURL)
+		if !strings.HasPrefix(responseURL, "http") {
+			responseURL = getRelativeRedirect(req, responseURL)
+		}
+		http.Redirect(rw, req, responseURL, http.StatusFound)
 	} else {
-		log.Println("Redirect does not exist: " + relativeURL + "-->" + responseURL)
+		log.Println("Redirect does not exist: " + fullURL + "-->" + responseURL)
 		rp.next.ServeHTTP(rw, req)
 	}
 }
 
-func getRedirectMatch(appURL, request string) (string, error) {
+func getRedirectMatch(appURL, request string) (string, bool, error) {
 	var client = &http.Client{}
-	req, err := http.NewRequest("GET", appURL, strings.NewReader(request))
+	req, err := http.NewRequest("POST", appURL, strings.NewReader(request))
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	req.Header.Set("Content-Type", "text/plain")
 
 	res, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	defer func() {
@@ -86,13 +96,14 @@ func getRedirectMatch(appURL, request string) (string, error) {
 
 	response, err := io.ReadAll(res.Body)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 
-	return string(response), nil
+	responseStr := string(response)
+	return responseStr, responseStr != "@empty", nil
 }
 
-func getFullURL(req *http.Request, responseURL string) string {
+func getFullURL(req *http.Request) string {
 	var proto = "https://"
 	if req.TLS == nil {
 		proto = "http://"
@@ -103,6 +114,19 @@ func getFullURL(req *http.Request, responseURL string) string {
 		host = req.Host
 	}
 
-	var answer = proto + host + responseURL
-	return strings.ToLower(answer)
+	return strings.ToLower(proto + host + req.URL.Path)
+}
+
+func getRelativeRedirect(req *http.Request, relativeURL string) string {
+	var proto = "https://"
+	if req.TLS == nil {
+		proto = "http://"
+	}
+
+	var host = req.URL.Host
+	if len(host) == 0 {
+		host = req.Host
+	}
+
+	return strings.ToLower(proto + host + relativeURL)
 }

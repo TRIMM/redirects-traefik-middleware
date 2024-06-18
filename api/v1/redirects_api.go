@@ -10,10 +10,11 @@ import (
 )
 
 type Redirect struct {
-	Id        string    `graphql:"id"`
-	FromURL   string    `graphql:"fromURL"`
-	ToURL     string    `graphql:"toURL"`
-	UpdatedAt time.Time `graphql:"updatedAt"`
+	Id         string    `graphql:"id"`
+	FromURL    string    `graphql:"fromURL"`
+	FromDomain string    `graphql:"fromDomain"`
+	ToURL      string    `graphql:"toURL"`
+	UpdatedAt  time.Time `graphql:"updatedAt"`
 }
 
 type PageInfo struct {
