@@ -8,5 +8,5 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
-	golang.org/x/oauth2 v0.20.0
+	golang.org/x/oauth2 v0.21.0
 )
