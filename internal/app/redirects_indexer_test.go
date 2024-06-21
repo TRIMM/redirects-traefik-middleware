@@ -2,7 +2,7 @@ package app
 
 import "testing"
 
-func TestIndexedRedirects_IndexRule(t *testing.T) {
+func TestIndexedRedirects_Index_And_Match(t *testing.T) {
 	idx := NewIndexedRedirects()
 	idx.IndexRule("/school/assignments", "", "/school/items")
 	idx.IndexRule("", "old-domain.com", "https://new-domain.com/welcome")
