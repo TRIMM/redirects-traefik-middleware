@@ -35,7 +35,7 @@ services:
       - --entrypoints.http.address=:80
       - --providers.file.filename=/redirects-config.yaml
       - --experimental.plugins.redirects-traefik-middleware.modulename=github.com/TRIMM/redirects-traefik-middleware
-      - --experimental.plugins.redirects-traefik-middleware.version=v0.1.8
+      - --experimental.plugins.redirects-traefik-middleware.version=v0.1.9
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./redirects-config.yaml:/redirects-config.yaml
