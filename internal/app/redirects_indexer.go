@@ -58,18 +58,28 @@ func (idx *IndexedRedirects) Match(url string) (string, bool) {
 	defer idx.mu.RUnlock()
 
 	if isFullURL {
-		for _, rule := range idx.DomainRules {
-			if matches := rule.fromDomain.FindStringSubmatch(url); matches != nil {
-				redirectURL := rule.target
-				for i := 1; i < len(matches); i++ {
-					placeholder := fmt.Sprintf("$%d", i)
-					redirectURL = strings.ReplaceAll(redirectURL, placeholder, matches[i])
-				}
-				return redirectURL, true
+		return idx.matchDomain(url)
+	}
+
+	return idx.matchRelativePath(url)
+}
+
+func (idx *IndexedRedirects) matchDomain(url string) (string, bool) {
+	for _, rule := range idx.DomainRules {
+		if matches := rule.fromDomain.FindStringSubmatch(url); matches != nil {
+			redirectURL := rule.target
+			for i := 1; i < len(matches); i++ {
+				placeholder := fmt.Sprintf("$%d", i)
+				redirectURL = strings.ReplaceAll(redirectURL, placeholder, matches[i])
 			}
+			return redirectURL, true
 		}
 	}
 
+	return "", false
+}
+
+func (idx *IndexedRedirects) matchRelativePath(url string) (string, bool) {
 	urlParts := strings.Split(url, "/")
 	length := len(urlParts)
 	prefix := urlParts[1]
