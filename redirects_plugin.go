@@ -7,7 +7,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/dgraph-io/ristretto"
 )
+
+const noMatchMarker = "@no_match"
 
 type Config struct {
 	RedirectsAppURL string `json:"redirectsAppURL,omitempty"`
@@ -20,10 +24,20 @@ func CreateConfig() *Config {
 type RedirectsPlugin struct {
 	next            http.Handler
 	name            string
+	redirectCache   *ristretto.Cache
 	redirectsAppURL string
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: 1e7,     // number of keys to track frequency of (10M)
+		MaxCost:     1 << 30, // maximum cost of cache (1GB)
+		BufferItems: 64,      // number of keys per Get buffer
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	log.Println("Redirects Traefik Middleware v0.1.9")
 
 	if len(config.RedirectsAppURL) == 0 {
@@ -35,6 +49,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	return &RedirectsPlugin{
 		next:            next,
 		name:            name,
+		redirectCache:   cache,
 		redirectsAppURL: config.RedirectsAppURL,
 	}, nil
 }
@@ -44,63 +59,71 @@ ServeHTTP intercepts a request and matches it against the existing rules
 If a match is found, it redirects accordingly
 */
 func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	var fullURL = getFullURL(req)
-	var relativeURL = req.URL.Path
+	fullURL := getFullURL(req)
+	relativeURL := req.URL.Path
 
-	var responseURL string
-	var isMatch bool
-	var err error
-
-	responseURL, isMatch, err = getRedirectMatch(rp.redirectsAppURL, fullURL)
-	if err != nil {
-		log.Println("Error sending HTTP request:", err)
-		http.Error(rw, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-	if !isMatch {
-		responseURL, isMatch, err = getRedirectMatch(rp.redirectsAppURL, relativeURL)
+	responseURL, found := rp.getCachedRedirect(fullURL)
+	if !found {
+		responseURL, found = rp.getCachedRedirect(relativeURL)
+		// Cache the redirect for full URL if found for relative URL
+		if found && responseURL != noMatchMarker {
+			rp.redirectCache.Set(fullURL, responseURL, 1)
+		}
 	}
 
-	if isMatch {
-		log.Println("Redirect exists: " + fullURL + "-->" + responseURL)
+	// Handle the found redirect or pass to the next handler
+	if found && responseURL != noMatchMarker {
+		log.Printf("Redirect exists: %s --> %s\n", fullURL, responseURL)
 		if !strings.HasPrefix(responseURL, "http") {
 			responseURL = getRelativeRedirect(req, responseURL)
 		}
 		http.Redirect(rw, req, responseURL, http.StatusFound)
-	} else {
-		log.Println("Redirect does not exist: " + fullURL + "-->" + responseURL)
-		rp.next.ServeHTTP(rw, req)
+		return
 	}
+
+	log.Printf("Redirect does not exist: %s\n", fullURL)
+	rp.next.ServeHTTP(rw, req)
 }
 
-func getRedirectMatch(appURL, request string) (string, bool, error) {
-	var client = &http.Client{}
-	req, err := http.NewRequest("POST", appURL, strings.NewReader(request))
+func (rp *RedirectsPlugin) getCachedRedirect(url string) (string, bool) {
+	value, found := rp.redirectCache.Get(url)
+	if found {
+		return value.(string), true
+	}
+
+	// Fetch from the redirect service if not found in cache
+	responseURL, isMatch, err := sendRedirectMatchRequest(rp.redirectsAppURL, url)
+	if err != nil || !isMatch {
+		rp.redirectCache.Set(url, noMatchMarker, 1)
+		return "", false
+	}
+
+	rp.redirectCache.Set(url, responseURL, 1)
+
+	return responseURL, true
+}
+
+func sendRedirectMatchRequest(redirectsAppURL, url string) (string, bool, error) {
+	response, err := http.Post(redirectsAppURL, "text/plain", strings.NewReader(url))
 	if err != nil {
 		return "", false, err
 	}
+	defer response.Body.Close()
 
-	req.Header.Set("Content-Type", "text/plain")
+	if response.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("unexpected status code: %d", response.StatusCode)
+	}
 
-	res, err := client.Do(req)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", false, err
 	}
-
-	defer func() {
-		err := res.Body.Close()
-		if err != nil {
-			log.Println("Error closing response body: ", err)
-		}
-	}()
-
-	response, err := io.ReadAll(res.Body)
-	if err != nil {
-		return "", false, err
+	redirectURL := string(body)
+	if redirectURL == "@empty" {
+		return "", false, nil
 	}
 
-	responseStr := string(response)
-	return responseStr, responseStr != "@empty", nil
+	return redirectURL, true, nil
 }
 
 func getFullURL(req *http.Request) string {

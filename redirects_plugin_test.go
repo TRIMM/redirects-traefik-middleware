@@ -1,6 +1,7 @@
 package redirects_traefik_middleware
 
 import (
+	"context"
 	"fmt"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
 	"io"
@@ -55,15 +56,21 @@ func startMockRedirectsServer(idx *app.IndexedRedirects) *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
-func getRedirectsPlugin(serverURL string) *RedirectsPlugin {
+func getMockRedirectsPlugin(serverURL string) http.Handler {
 	nextHandler := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusOK)
 	})
 
-	return &RedirectsPlugin{
-		redirectsAppURL: serverURL,
-		next:            nextHandler,
+	config := &Config{
+		RedirectsAppURL: serverURL,
 	}
+
+	handler, err := New(context.Background(), nextHandler, config, "traefik-app-test")
+	if err != nil {
+		panic(err)
+	}
+
+	return handler
 }
 
 func TestServeHTTP_Match_Redirect(t *testing.T) {
@@ -74,7 +81,7 @@ func TestServeHTTP_Match_Redirect(t *testing.T) {
 	mockServer := startMockRedirectsServer(idx)
 	defer mockServer.Close()
 
-	redirectsPlugin := getRedirectsPlugin(mockServer.URL)
+	rp := getMockRedirectsPlugin(mockServer.URL)
 	testCases := getTestCases()
 
 	for _, tc := range *testCases {
@@ -86,7 +93,7 @@ func TestServeHTTP_Match_Redirect(t *testing.T) {
 			}
 
 			rr := httptest.NewRecorder()
-			redirectsPlugin.ServeHTTP(rr, req)
+			rp.ServeHTTP(rr, req)
 
 			if rr.Code != http.StatusFound {
 				t.Errorf("handler returned wrong status code: got %v want %v",
@@ -106,14 +113,14 @@ func TestServeHTTP_NoMatch_Redirect(t *testing.T) {
 	mockServer := startMockRedirectsServer(idx)
 	defer mockServer.Close()
 
-	redirectsPlugin := getRedirectsPlugin(mockServer.URL)
+	rp := getMockRedirectsPlugin(mockServer.URL)
 	req, err := http.NewRequest("GET", "http://example.com/nonexistent", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	rr := httptest.NewRecorder()
-	redirectsPlugin.ServeHTTP(rr, req)
+	rp.ServeHTTP(rr, req)
 
 	if status := rr.Code; status != http.StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
@@ -128,7 +135,7 @@ func BenchmarkMiddleware_Match_Redirect(b *testing.B) {
 	mockServer := startMockRedirectsServer(idx)
 	defer mockServer.Close()
 
-	redirectsPlugin := getRedirectsPlugin(mockServer.URL)
+	rp := getMockRedirectsPlugin(mockServer.URL)
 
 	req, err := http.NewRequest("GET", "http://example.com/product/furniture/electronics/", nil)
 	if err != nil {
@@ -139,7 +146,7 @@ func BenchmarkMiddleware_Match_Redirect(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		redirectsPlugin.ServeHTTP(rr, req)
+		rp.ServeHTTP(rr, req)
 
 		if rr.Code != http.StatusFound {
 			b.Errorf("handler returned wrong status code: got %v want %v",
@@ -160,7 +167,7 @@ func BenchmarkMiddleware_NoMatch_Redirect(b *testing.B) {
 	mockServer := startMockRedirectsServer(idx)
 	defer mockServer.Close()
 
-	redirectsPlugin := getRedirectsPlugin(mockServer.URL)
+	rp := getMockRedirectsPlugin(mockServer.URL)
 
 	req, err := http.NewRequest("GET", "http://example.com/nonexistent", nil)
 	if err != nil {
@@ -171,7 +178,7 @@ func BenchmarkMiddleware_NoMatch_Redirect(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		rr := httptest.NewRecorder()
-		redirectsPlugin.ServeHTTP(rr, req)
+		rp.ServeHTTP(rr, req)
 
 		if status := rr.Code; status != http.StatusOK {
 			b.Errorf("handler returned wrong status code: got %v want %v",
