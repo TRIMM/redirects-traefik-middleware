@@ -7,8 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
-	"github.com/dgraph-io/ristretto"
+	"time"
 )
 
 const noMatchMarker = "@no_match"
@@ -24,20 +23,11 @@ func CreateConfig() *Config {
 type RedirectsPlugin struct {
 	next            http.Handler
 	name            string
-	redirectCache   *ristretto.Cache
 	redirectsAppURL string
+	cache           *Cache
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	cache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1e7,     // number of keys to track frequency of (10M)
-		MaxCost:     1 << 30, // maximum cost of cache (1GB)
-		BufferItems: 64,      // number of keys per Get buffer
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	log.Println("Redirects Traefik Middleware v0.2.0")
 
 	if len(config.RedirectsAppURL) == 0 {
@@ -49,8 +39,8 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	return &RedirectsPlugin{
 		next:            next,
 		name:            name,
-		redirectCache:   cache,
 		redirectsAppURL: config.RedirectsAppURL,
+		cache:           NewCache(10*time.Minute, 20*time.Minute),
 	}, nil
 }
 
@@ -67,7 +57,7 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		responseURL, found = rp.getCachedRedirect(relativeURL)
 		// Cache the redirect for full URL if found for relative URL
 		if found && responseURL != noMatchMarker {
-			rp.redirectCache.Set(fullURL, responseURL, 1)
+			rp.cache.Set(fullURL, responseURL, rp.cache.defaultTTL)
 		}
 	}
 
@@ -86,7 +76,7 @@ func (rp *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 }
 
 func (rp *RedirectsPlugin) getCachedRedirect(url string) (string, bool) {
-	value, found := rp.redirectCache.Get(url)
+	value, found := rp.cache.Get(url)
 	if found {
 		return value.(string), true
 	}
@@ -94,11 +84,11 @@ func (rp *RedirectsPlugin) getCachedRedirect(url string) (string, bool) {
 	// Fetch from the redirect service if not found in cache
 	responseURL, isMatch, err := sendRedirectMatchRequest(rp.redirectsAppURL, url)
 	if err != nil || !isMatch {
-		rp.redirectCache.Set(url, noMatchMarker, 1)
+		rp.cache.Set(url, noMatchMarker, rp.cache.defaultTTL)
 		return "", false
 	}
 
-	rp.redirectCache.Set(url, responseURL, 1)
+	rp.cache.Set(url, responseURL, rp.cache.defaultTTL)
 
 	return responseURL, true
 }
