@@ -14,7 +14,7 @@ experimental:
   plugins:
     redirects-traefik-middleware:
       moduleName: github.com/TRIMM/redirects-traefik-middleware
-      version: "v0.1.9"
+      version: "v0.2.0"
 ```
 
 ### Dynamic

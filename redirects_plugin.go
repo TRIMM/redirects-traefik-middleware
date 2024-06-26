@@ -38,7 +38,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, err
 	}
 
-	log.Println("Redirects Traefik Middleware v0.1.9")
+	log.Println("Redirects Traefik Middleware v0.2.0")
 
 	if len(config.RedirectsAppURL) == 0 {
 		return nil, fmt.Errorf("RedirectsPlugin 'redirectsURL' cannot be empty")
