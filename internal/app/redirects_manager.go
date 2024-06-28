@@ -39,7 +39,7 @@ func (rm *RedirectManager) FetchRedirectsOverChannel(redirectsCh chan<- []api.Re
 
 	for {
 		select {
-		case <-time.After(10 * time.Hour):
+		case <-time.After(7 * 24 * time.Hour):
 			fetchedRedirects, err := rm.gqlClient.ExecuteRedirectsQuery()
 			if err != nil {
 				errCh <- err

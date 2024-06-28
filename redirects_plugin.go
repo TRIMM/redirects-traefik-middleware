@@ -28,6 +28,8 @@ type RedirectsPlugin struct {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
+	ttl := 7 * 24 * time.Hour
+
 	log.Println("Redirects Traefik Middleware v0.2.0")
 
 	if len(config.RedirectsAppURL) == 0 {
@@ -40,7 +42,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		next:            next,
 		name:            name,
 		redirectsAppURL: config.RedirectsAppURL,
-		cache:           NewCache(10*time.Minute, 20*time.Minute),
+		cache:           NewCache(ttl, ttl),
 	}, nil
 }
 
