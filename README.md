@@ -4,7 +4,7 @@
 This plugin is a Traefik middleware written in Go Lang.
 The purpose of it is to redirect the user according to rules processed from the Central API backend.
 
-## Traefik Configuration
+## Traefik Plugin Configuration
 
 ### Static
 #### traefik.yml
@@ -43,4 +43,19 @@ http:
       plugin:
         redirects-traefik-middleware:
           redirectsAppURL: "redirects-app:8081"
+```
+
+## Service App Configuration
+
+> **_NOTE:_**
+> Make sure that the Central API is running as well. Since we need to synchronize data from there.
+
+### Env variables
+
+Copy the existing `.env.example` to a new `.env` and insert real values from your setup.
+
+### Running the service
+
+```bash
+docker-compose up -d --build
 ```
