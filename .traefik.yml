@@ -1,6 +1,6 @@
 displayName: TRIMM Redirects plugin
-
 type: middleware
+iconPath: .assets/icon.png
 
 import: github.com/TRIMM/redirects-traefik-middleware
 
