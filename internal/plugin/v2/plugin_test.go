@@ -26,17 +26,23 @@ func TestMatchingRedirect(t *testing.T) {
 		},
 	}
 
-	regexMatcher := matcher.NewRegexRedirectMatcher(&redirects)
-	p := getPlugin(regexMatcher)
-	req := httptest.NewRequest("GET", "https://www.trimm.nl/dedicated/host", http.NoBody)
-	rr := httptest.NewRecorder()
+	matchers := map[string]matcher.Matcher{
+		"RegexRedirectMatcher": matcher.NewRegexRedirectMatcher(&redirects),
+		"RadixRedirectMatcher": matcher.NewRadixRedirectMatcher(&redirects),
+	}
 
-	// WHEN
-	p.ServeHTTP(rr, req)
+	for k, m := range matchers {
+		p := getPlugin(m)
+		req := httptest.NewRequest("GET", "https://www.trimm.nl/dedicated/host", http.NoBody)
+		rr := httptest.NewRecorder()
 
-	// THEN
-	if rr.Code != http.StatusFound {
-		t.Errorf("got status code %d, want %d", rr.Code, http.StatusFound)
+		// WHEN
+		p.ServeHTTP(rr, req)
+
+		// THEN
+		if rr.Code != http.StatusFound {
+			t.Errorf("[%s] got status code %d, want %d", k, rr.Code, http.StatusFound)
+		}
 	}
 }
 
@@ -45,37 +51,43 @@ func BenchmarkMatchingRedirect(b *testing.B) {
 	numberOfRedirects := []int{10, 100, 1000, 10000, 100000}
 
 	for _, num := range numberOfRedirects {
-		b.Run(fmt.Sprintf("redirects_%d", num), func(b *testing.B) {
-			// Create redirects
-			var redirects []v1.Redirect
-			for i := range num {
-				redirects = append(redirects, v1.Redirect{
-					Id:         uuid.NewString(),
-					FromURL:    fmt.Sprintf("/no/match/%d", i),
-					FromDomain: "",
-					ToURL:      "/host",
-					UpdatedAt:  time.Date(2024, time.July, 26, 13, 10, 0, 0, time.UTC),
-				})
-			}
-
-			// Worst-case scenario where the matching redirect is latest in the slice
+		// Create redirects
+		var redirects []v1.Redirect
+		for i := range num {
 			redirects = append(redirects, v1.Redirect{
-				Id:         "18e3bde3-f087-4c53-a212-7f78f24978f9",
-				FromURL:    "/dedicated/host",
+				Id:         uuid.NewString(),
+				FromURL:    fmt.Sprintf("/no/match/%d", i),
 				FromDomain: "",
 				ToURL:      "/host",
 				UpdatedAt:  time.Date(2024, time.July, 26, 13, 10, 0, 0, time.UTC),
 			})
+		}
 
-			regexMatcher := matcher.NewRegexRedirectMatcher(&redirects)
-			p := getPlugin(regexMatcher)
-			req := httptest.NewRequest("GET", "https://www.trimm.nl/dedicated/host", http.NoBody)
-			rr := httptest.NewRecorder()
-
-			for i := 0; i < b.N; i++ {
-				p.ServeHTTP(rr, req)
-			}
+		// Worst-case scenario where the matching redirect is latest in the slice
+		redirects = append(redirects, v1.Redirect{
+			Id:         "18e3bde3-f087-4c53-a212-7f78f24978f9",
+			FromURL:    "/dedicated/host",
+			FromDomain: "",
+			ToURL:      "/host",
+			UpdatedAt:  time.Date(2024, time.July, 26, 13, 10, 0, 0, time.UTC),
 		})
+
+		matchers := map[string]matcher.Matcher{
+			"RegexRedirectMatcher": matcher.NewRegexRedirectMatcher(&redirects),
+			"RadixRedirectMatcher": matcher.NewRadixRedirectMatcher(&redirects),
+		}
+
+		for k, m := range matchers {
+			b.Run(fmt.Sprintf("redirects_%d_%s", num, k), func(b *testing.B) {
+				p := getPlugin(m)
+				req := httptest.NewRequest("GET", "https://www.trimm.nl/dedicated/host", http.NoBody)
+				rr := httptest.NewRecorder()
+
+				for i := 0; i < b.N; i++ {
+					p.ServeHTTP(rr, req)
+				}
+			})
+		}
 	}
 }
 
