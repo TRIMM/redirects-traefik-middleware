@@ -11,5 +11,3 @@ require (
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
 	golang.org/x/oauth2 v0.21.0
 )
-
-require github.com/go-chi/chi/v5 v5.1.0
