@@ -1,9 +1,10 @@
-package redirects_traefik_middleware
+package v1
 
 import (
 	"context"
 	"fmt"
 	"github.com/TRIMM/redirects-traefik-middleware/internal/app"
+	"github.com/TRIMM/redirects-traefik-middleware/internal/plugin"
 	"io"
 	"log"
 	"net/http"
@@ -61,7 +62,7 @@ func getMockRedirectsPlugin(serverURL string) http.Handler {
 		rw.WriteHeader(http.StatusOK)
 	})
 
-	config := &Config{
+	config := &plugin.Config{
 		RedirectsAppURL: serverURL,
 	}
 

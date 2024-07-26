@@ -1,4 +1,4 @@
-package redirects_traefik_middleware
+package v1
 
 import (
 	"sync"

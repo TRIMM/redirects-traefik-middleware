@@ -20,3 +20,4 @@ http:
       plugin:
         redirects-traefik-middleware:
           redirectsAppURL: "http://redirects-app:8081"
+          v2: true
