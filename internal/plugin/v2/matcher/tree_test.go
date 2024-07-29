@@ -35,46 +35,46 @@ func TestTree(t *testing.T) {
 
 	tr := &node{}
 
-	tr.InsertRoute(mGET, "/", hIndex)
-	tr.InsertRoute(mGET, "/favicon.ico", hFavicon)
+	tr.InsertRoute(mGET, "/", hIndex, "")
+	tr.InsertRoute(mGET, "/favicon.ico", hFavicon, "")
 
-	tr.InsertRoute(mGET, "/pages/*", hStub)
+	tr.InsertRoute(mGET, "/pages/*", hStub, "")
 
-	tr.InsertRoute(mGET, "/article", hArticleList)
-	tr.InsertRoute(mGET, "/article/", hArticleList)
+	tr.InsertRoute(mGET, "/article", hArticleList, "")
+	tr.InsertRoute(mGET, "/article/", hArticleList, "")
 
-	tr.InsertRoute(mGET, "/article/near", hArticleNear)
-	tr.InsertRoute(mGET, "/article/{id}", hStub)
-	tr.InsertRoute(mGET, "/article/{id}", hArticleShow)
-	tr.InsertRoute(mGET, "/article/{id}", hArticleShow) // duplicate will have no effect
-	tr.InsertRoute(mGET, "/article/@{user}", hArticleByUser)
+	tr.InsertRoute(mGET, "/article/near", hArticleNear, "")
+	tr.InsertRoute(mGET, "/article/{id}", hStub, "")
+	tr.InsertRoute(mGET, "/article/{id}", hArticleShow, "")
+	tr.InsertRoute(mGET, "/article/{id}", hArticleShow, "") // duplicate will have no effect
+	tr.InsertRoute(mGET, "/article/@{user}", hArticleByUser, "")
 
-	tr.InsertRoute(mGET, "/article/{sup}/{opts}", hArticleShowOpts)
-	tr.InsertRoute(mGET, "/article/{id}/{opts}", hArticleShowOpts) // overwrite above route, latest wins
+	tr.InsertRoute(mGET, "/article/{sup}/{opts}", hArticleShowOpts, "")
+	tr.InsertRoute(mGET, "/article/{id}/{opts}", hArticleShowOpts, "") // overwrite above route, latest wins
 
-	tr.InsertRoute(mGET, "/article/{iffd}/edit", hStub)
-	tr.InsertRoute(mGET, "/article/{id}//related", hArticleShowRelated)
-	tr.InsertRoute(mGET, "/article/slug/{month}/-/{day}/{year}", hArticleSlug)
+	tr.InsertRoute(mGET, "/article/{iffd}/edit", hStub, "")
+	tr.InsertRoute(mGET, "/article/{id}//related", hArticleShowRelated, "")
+	tr.InsertRoute(mGET, "/article/slug/{month}/-/{day}/{year}", hArticleSlug, "")
 
-	tr.InsertRoute(mGET, "/admin/user", hUserList)
-	tr.InsertRoute(mGET, "/admin/user/", hStub) // will get replaced by next route
-	tr.InsertRoute(mGET, "/admin/user/", hUserList)
+	tr.InsertRoute(mGET, "/admin/user", hUserList, "")
+	tr.InsertRoute(mGET, "/admin/user/", hStub, "") // will get replaced by next route
+	tr.InsertRoute(mGET, "/admin/user/", hUserList, "")
 
-	tr.InsertRoute(mGET, "/admin/user//{id}", hUserShow)
-	tr.InsertRoute(mGET, "/admin/user/{id}", hUserShow)
+	tr.InsertRoute(mGET, "/admin/user//{id}", hUserShow, "")
+	tr.InsertRoute(mGET, "/admin/user/{id}", hUserShow, "")
 
-	tr.InsertRoute(mGET, "/admin/apps/{id}", hAdminAppShow)
-	tr.InsertRoute(mGET, "/admin/apps/{id}/*", hAdminAppShowCatchall)
+	tr.InsertRoute(mGET, "/admin/apps/{id}", hAdminAppShow, "")
+	tr.InsertRoute(mGET, "/admin/apps/{id}/*", hAdminAppShowCatchall, "")
 
-	tr.InsertRoute(mGET, "/admin/*", hStub) // catchall segment will get replaced by next route
-	tr.InsertRoute(mGET, "/admin/*", hAdminCatchall)
+	tr.InsertRoute(mGET, "/admin/*", hStub, "") // catchall segment will get replaced by next route
+	tr.InsertRoute(mGET, "/admin/*", hAdminCatchall, "")
 
-	tr.InsertRoute(mGET, "/users/{userID}/profile", hUserProfile)
-	tr.InsertRoute(mGET, "/users/super/*", hUserSuper)
-	tr.InsertRoute(mGET, "/users/*", hUserAll)
+	tr.InsertRoute(mGET, "/users/{userID}/profile", hUserProfile, "")
+	tr.InsertRoute(mGET, "/users/super/*", hUserSuper, "")
+	tr.InsertRoute(mGET, "/users/*", hUserAll, "")
 
-	tr.InsertRoute(mGET, "/hubs/{hubID}/view", hHubView1)
-	tr.InsertRoute(mGET, "/hubs/{hubID}/view/*", hHubView2)
+	tr.InsertRoute(mGET, "/hubs/{hubID}/view", hHubView1, "")
+	tr.InsertRoute(mGET, "/hubs/{hubID}/view/*", hHubView2, "")
 
 	tests := []struct {
 		r string       // input request path
@@ -127,7 +127,7 @@ func TestTree(t *testing.T) {
 	for i, tt := range tests {
 		rctx := NewRouteContext()
 
-		_, handlers, _ := tr.FindRoute(rctx, mGET, tt.r)
+		_, handlers, _, _ := tr.FindRoute(rctx, mGET, tt.r)
 
 		var handler http.Handler
 		if methodHandler, ok := handlers[mGET]; ok {
@@ -173,31 +173,31 @@ func TestTreeMoar(t *testing.T) {
 
 	tr := &node{}
 
-	tr.InsertRoute(mGET, "/articlefun", hStub5)
-	tr.InsertRoute(mGET, "/articles/{id}", hStub)
-	tr.InsertRoute(mDELETE, "/articles/{slug}", hStub8)
-	tr.InsertRoute(mGET, "/articles/search", hStub1)
-	tr.InsertRoute(mGET, "/articles/{id}:delete", hStub8)
-	tr.InsertRoute(mGET, "/articles/{iidd}!sup", hStub4)
-	tr.InsertRoute(mGET, "/articles/{id}:{op}", hStub3)
-	tr.InsertRoute(mGET, "/articles/{id}:{op}", hStub2)                              // this route sets a new handler for the above route
-	tr.InsertRoute(mGET, "/articles/{slug:^[a-z]+}/posts", hStub)                    // up to tail '/' will only match if contents match the rex
-	tr.InsertRoute(mGET, "/articles/{id}/posts/{pid}", hStub6)                       // /articles/123/posts/1
-	tr.InsertRoute(mGET, "/articles/{id}/posts/{month}/{day}/{year}/{slug}", hStub7) // /articles/123/posts/09/04/1984/juice
-	tr.InsertRoute(mGET, "/articles/{id}.json", hStub10)
-	tr.InsertRoute(mGET, "/articles/{id}/data.json", hStub11)
-	tr.InsertRoute(mGET, "/articles/files/{file}.{ext}", hStub12)
-	tr.InsertRoute(mPUT, "/articles/me", hStub13)
+	tr.InsertRoute(mGET, "/articlefun", hStub5, "")
+	tr.InsertRoute(mGET, "/articles/{id}", hStub, "")
+	tr.InsertRoute(mDELETE, "/articles/{slug}", hStub8, "")
+	tr.InsertRoute(mGET, "/articles/search", hStub1, "")
+	tr.InsertRoute(mGET, "/articles/{id}:delete", hStub8, "")
+	tr.InsertRoute(mGET, "/articles/{iidd}!sup", hStub4, "")
+	tr.InsertRoute(mGET, "/articles/{id}:{op}", hStub3, "")
+	tr.InsertRoute(mGET, "/articles/{id}:{op}", hStub2, "")                              // this route sets a new handler for the above route
+	tr.InsertRoute(mGET, "/articles/{slug:^[a-z]+}/posts", hStub, "")                    // up to tail '/' will only match if contents match the rex
+	tr.InsertRoute(mGET, "/articles/{id}/posts/{pid}", hStub6, "")                       // /articles/123/posts/1
+	tr.InsertRoute(mGET, "/articles/{id}/posts/{month}/{day}/{year}/{slug}", hStub7, "") // /articles/123/posts/09/04/1984/juice
+	tr.InsertRoute(mGET, "/articles/{id}.json", hStub10, "")
+	tr.InsertRoute(mGET, "/articles/{id}/data.json", hStub11, "")
+	tr.InsertRoute(mGET, "/articles/files/{file}.{ext}", hStub12, "")
+	tr.InsertRoute(mPUT, "/articles/me", hStub13, "")
 
 	// TODO: make a separate test case for this one..
 	// tr.InsertRoute(mGET, "/articles/{id}/{id}", hStub1)                              // panic expected, we're duplicating param keys
 
-	tr.InsertRoute(mGET, "/pages/*", hStub)
-	tr.InsertRoute(mGET, "/pages/*", hStub9)
+	tr.InsertRoute(mGET, "/pages/*", hStub, "")
+	tr.InsertRoute(mGET, "/pages/*", hStub9, "")
 
-	tr.InsertRoute(mGET, "/users/{id}", hStub14)
-	tr.InsertRoute(mGET, "/users/{id}/settings/{key}", hStub15)
-	tr.InsertRoute(mGET, "/users/{id}/settings/*", hStub16)
+	tr.InsertRoute(mGET, "/users/{id}", hStub14, "")
+	tr.InsertRoute(mGET, "/users/{id}/settings/{key}", hStub15, "")
+	tr.InsertRoute(mGET, "/users/{id}/settings/*", hStub16, "")
 
 	tests := []struct {
 		h http.Handler
@@ -243,7 +243,7 @@ func TestTreeMoar(t *testing.T) {
 	for i, tt := range tests {
 		rctx := NewRouteContext()
 
-		_, handlers, _ := tr.FindRoute(rctx, tt.m, tt.r)
+		_, handlers, _, _ := tr.FindRoute(rctx, tt.m, tt.r)
 
 		var handler http.Handler
 		if methodHandler, ok := handlers[tt.m]; ok {
@@ -275,13 +275,13 @@ func TestTreeRegexp(t *testing.T) {
 	hStub7 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
 	tr := &node{}
-	tr.InsertRoute(mGET, "/articles/{rid:^[0-9]{5,6}}", hStub7)
-	tr.InsertRoute(mGET, "/articles/{zid:^0[0-9]+}", hStub3)
-	tr.InsertRoute(mGET, "/articles/{name:^@[a-z]+}/posts", hStub4)
-	tr.InsertRoute(mGET, "/articles/{op:^[0-9]+}/run", hStub5)
-	tr.InsertRoute(mGET, "/articles/{id:^[0-9]+}", hStub1)
-	tr.InsertRoute(mGET, "/articles/{id:^[1-9]+}-{aux}", hStub6)
-	tr.InsertRoute(mGET, "/articles/{slug}", hStub2)
+	tr.InsertRoute(mGET, "/articles/{rid:^[0-9]{5,6}}", hStub7, "")
+	tr.InsertRoute(mGET, "/articles/{zid:^0[0-9]+}", hStub3, "")
+	tr.InsertRoute(mGET, "/articles/{name:^@[a-z]+}/posts", hStub4, "")
+	tr.InsertRoute(mGET, "/articles/{op:^[0-9]+}/run", hStub5, "")
+	tr.InsertRoute(mGET, "/articles/{id:^[0-9]+}", hStub1, "")
+	tr.InsertRoute(mGET, "/articles/{id:^[1-9]+}-{aux}", hStub6, "")
+	tr.InsertRoute(mGET, "/articles/{slug}", hStub2, "")
 
 	// log.Println("~~~~~~~~~")
 	// log.Println("~~~~~~~~~")
@@ -309,7 +309,7 @@ func TestTreeRegexp(t *testing.T) {
 	for i, tt := range tests {
 		rctx := NewRouteContext()
 
-		_, handlers, _ := tr.FindRoute(rctx, mGET, tt.r)
+		_, handlers, _, _ := tr.FindRoute(rctx, mGET, tt.r)
 
 		var handler http.Handler
 		if methodHandler, ok := handlers[mGET]; ok {
@@ -336,8 +336,8 @@ func TestTreeRegexpRecursive(t *testing.T) {
 	hStub2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
 	tr := &node{}
-	tr.InsertRoute(mGET, "/one/{firstId:[a-z0-9-]+}/{secondId:[a-z0-9-]+}/first", hStub1)
-	tr.InsertRoute(mGET, "/one/{firstId:[a-z0-9-_]+}/{secondId:[a-z0-9-_]+}/second", hStub2)
+	tr.InsertRoute(mGET, "/one/{firstId:[a-z0-9-]+}/{secondId:[a-z0-9-]+}/first", hStub1, "")
+	tr.InsertRoute(mGET, "/one/{firstId:[a-z0-9-_]+}/{secondId:[a-z0-9-_]+}/second", hStub2, "")
 
 	// log.Println("~~~~~~~~~")
 	// log.Println("~~~~~~~~~")
@@ -360,7 +360,7 @@ func TestTreeRegexpRecursive(t *testing.T) {
 	for i, tt := range tests {
 		rctx := NewRouteContext()
 
-		_, handlers, _ := tr.FindRoute(rctx, mGET, tt.r)
+		_, handlers, _, _ := tr.FindRoute(rctx, mGET, tt.r)
 
 		var handler http.Handler
 		if methodHandler, ok := handlers[mGET]; ok {
@@ -387,9 +387,9 @@ func TestTreeRegexMatchWholeParam(t *testing.T) {
 
 	rctx := NewRouteContext()
 	tr := &node{}
-	tr.InsertRoute(mGET, "/{id:[0-9]+}", hStub1)
-	tr.InsertRoute(mGET, "/{x:.+}/foo", hStub1)
-	tr.InsertRoute(mGET, "/{param:[0-9]*}/test", hStub1)
+	tr.InsertRoute(mGET, "/{id:[0-9]+}", hStub1, "")
+	tr.InsertRoute(mGET, "/{x:.+}/foo", hStub1, "")
+	tr.InsertRoute(mGET, "/{param:[0-9]*}/test", hStub1, "")
 
 	tests := []struct {
 		expectedHandler http.Handler
@@ -405,7 +405,7 @@ func TestTreeRegexMatchWholeParam(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		_, _, handler := tr.FindRoute(rctx, mGET, tc.url)
+		_, _, handler, _ := tr.FindRoute(rctx, mGET, tc.url)
 		if fmt.Sprintf("%v", tc.expectedHandler) != fmt.Sprintf("%v", handler) {
 			t.Errorf("url %v: expecting handler:%v , got:%v", tc.url, tc.expectedHandler, handler)
 		}
@@ -418,9 +418,9 @@ func TestTreeFindPattern(t *testing.T) {
 	hStub3 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
 	tr := &node{}
-	tr.InsertRoute(mGET, "/pages/*", hStub1)
-	tr.InsertRoute(mGET, "/articles/{id}/*", hStub2)
-	tr.InsertRoute(mGET, "/articles/{slug}/{uid}/*", hStub3)
+	tr.InsertRoute(mGET, "/pages/*", hStub1, "")
+	tr.InsertRoute(mGET, "/articles/{id}/*", hStub2, "")
+	tr.InsertRoute(mGET, "/articles/{slug}/{uid}/*", hStub3, "")
 
 	if tr.findPattern("/pages") != false {
 		t.Errorf("find /pages failed")
@@ -487,14 +487,14 @@ func BenchmarkTreeGet(b *testing.B) {
 	h2 := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
 	tr := &node{}
-	tr.InsertRoute(mGET, "/", h1)
-	tr.InsertRoute(mGET, "/ping", h2)
-	tr.InsertRoute(mGET, "/pingall", h2)
-	tr.InsertRoute(mGET, "/ping/{id}", h2)
-	tr.InsertRoute(mGET, "/ping/{id}/woop", h2)
-	tr.InsertRoute(mGET, "/ping/{id}/{opt}", h2)
-	tr.InsertRoute(mGET, "/pinggggg", h2)
-	tr.InsertRoute(mGET, "/hello", h1)
+	tr.InsertRoute(mGET, "/", h1, "")
+	tr.InsertRoute(mGET, "/ping", h2, "")
+	tr.InsertRoute(mGET, "/pingall", h2, "")
+	tr.InsertRoute(mGET, "/ping/{id}", h2, "")
+	tr.InsertRoute(mGET, "/ping/{id}/woop", h2, "")
+	tr.InsertRoute(mGET, "/ping/{id}/{opt}", h2, "")
+	tr.InsertRoute(mGET, "/pinggggg", h2, "")
+	tr.InsertRoute(mGET, "/hello", h1, "")
 
 	mctx := NewRouteContext()
 

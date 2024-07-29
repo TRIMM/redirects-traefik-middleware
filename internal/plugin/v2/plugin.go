@@ -44,7 +44,7 @@ func New(ctx context.Context, next http.Handler, config *plugin.Config, name str
 		return nil, err
 	}
 
-	regexMatcher := matcher.NewRegexRedirectMatcher(&redirects)
+	regexMatcher := matcher.NewRadixRedirectMatcher(&redirects)
 
 	return &RedirectsPlugin{
 		next:    next,
@@ -77,15 +77,20 @@ func (a *RedirectsPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 func getAbsoluteUrl(req *http.Request) string {
-	var proto = "https://"
-	if req.TLS == nil {
-		proto = "http://"
-	}
-
-	var host = req.URL.Host
+	host := req.URL.Host
 	if len(host) == 0 {
 		host = req.Host
 	}
 
-	return strings.ToLower(proto + host + req.URL.Path)
+	var sb strings.Builder
+	if req.TLS != nil {
+		sb.WriteString("https://")
+	} else {
+		sb.WriteString("http://")
+	}
+
+	sb.WriteString(host)
+	sb.WriteString(req.URL.Path)
+
+	return strings.ToLower(sb.String())
 }

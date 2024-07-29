@@ -118,6 +118,9 @@ type endpoint struct {
 	// endpoint handler
 	handler http.Handler
 
+	// toURL is the url to redirect to
+	toURL string
+
 	// pattern is the routing pattern for handler nodes
 	pattern string
 
@@ -134,7 +137,7 @@ func (s endpoints) Value(method methodTyp) *endpoint {
 	return mh
 }
 
-func (n *node) InsertRoute(method methodTyp, pattern string, handler http.Handler) *node {
+func (n *node) InsertRoute(method methodTyp, pattern string, handler http.Handler, toURL string) *node {
 	var parent *node
 	search := pattern
 
@@ -142,7 +145,7 @@ func (n *node) InsertRoute(method methodTyp, pattern string, handler http.Handle
 		// Handle key exhaustion
 		if len(search) == 0 {
 			// Insert or update the node's leaf handler
-			n.setEndpoint(method, handler, pattern)
+			n.setEndpoint(method, handler, pattern, toURL)
 			return n
 		}
 
@@ -170,7 +173,7 @@ func (n *node) InsertRoute(method methodTyp, pattern string, handler http.Handle
 		if n == nil {
 			child := &node{label: label, tail: segTail, prefix: search}
 			hn := parent.addChild(child, search)
-			hn.setEndpoint(method, handler, pattern)
+			hn.setEndpoint(method, handler, pattern, toURL)
 
 			return hn
 		}
@@ -210,7 +213,7 @@ func (n *node) InsertRoute(method methodTyp, pattern string, handler http.Handle
 		// If the new key is a subset, set the method/handler on this node and finish.
 		search = search[commonPrefix:]
 		if len(search) == 0 {
-			child.setEndpoint(method, handler, pattern)
+			child.setEndpoint(method, handler, pattern, toURL)
 			return child
 		}
 
@@ -221,7 +224,7 @@ func (n *node) InsertRoute(method methodTyp, pattern string, handler http.Handle
 			prefix: search,
 		}
 		hn := child.addChild(subchild, search)
-		hn.setEndpoint(method, handler, pattern)
+		hn.setEndpoint(method, handler, pattern, toURL)
 		return hn
 	}
 }
@@ -339,7 +342,7 @@ func (n *node) getEdge(ntyp nodeTyp, label, tail byte, prefix string) *node {
 	return nil
 }
 
-func (n *node) setEndpoint(method methodTyp, handler http.Handler, pattern string) {
+func (n *node) setEndpoint(method methodTyp, handler http.Handler, pattern string, toURL string) {
 	// Set the handler for the method type on the node
 	if n.endpoints == nil {
 		n.endpoints = make(endpoints)
@@ -355,21 +358,24 @@ func (n *node) setEndpoint(method methodTyp, handler http.Handler, pattern strin
 		h.handler = handler
 		h.pattern = pattern
 		h.paramKeys = paramKeys
+		h.toURL = toURL
 		for _, m := range methodMap {
 			h := n.endpoints.Value(m)
 			h.handler = handler
 			h.pattern = pattern
 			h.paramKeys = paramKeys
+			h.toURL = toURL
 		}
 	} else {
 		h := n.endpoints.Value(method)
 		h.handler = handler
 		h.pattern = pattern
 		h.paramKeys = paramKeys
+		h.toURL = toURL
 	}
 }
 
-func (n *node) FindRoute(rctx *Context, method methodTyp, path string) (*node, endpoints, http.Handler) {
+func (n *node) FindRoute(rctx *Context, method methodTyp, path string) (*node, endpoints, http.Handler, string) {
 	// Reset the context routing pattern and params
 	rctx.routePattern = ""
 	rctx.routeParams.Keys = rctx.routeParams.Keys[:0]
@@ -378,7 +384,7 @@ func (n *node) FindRoute(rctx *Context, method methodTyp, path string) (*node, e
 	// Find the routing handlers for the path
 	rn := n.findRoute(rctx, method, path)
 	if rn == nil {
-		return nil, nil, nil
+		return nil, nil, nil, ""
 	}
 
 	// Record the routing params in the request lifecycle
@@ -391,7 +397,7 @@ func (n *node) FindRoute(rctx *Context, method methodTyp, path string) (*node, e
 		rctx.RoutePatterns = append(rctx.RoutePatterns, rctx.routePattern)
 	}
 
-	return rn, rn.endpoints, rn.endpoints[method].handler
+	return rn, rn.endpoints, rn.endpoints[method].handler, rn.endpoints[method].toURL
 }
 
 // Recursive edge traversal by checking all nodeTyp groups along the way.
